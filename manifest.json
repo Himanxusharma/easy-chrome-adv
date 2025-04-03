@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Easy Chrome Advanced",
+  "version": "1.0.0",
+  "description": "A minimalist Chrome extension for hard refresh with cache clearing",
+  "permissions": [
+    "activeTab",
+    "browsingData",
+    "cookies",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "Easy Chrome Advanced"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+} 

@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased;
+  }
+}
+
+@layer components {
+  .nav-link {
+    @apply text-sm font-light hover:text-gray-600 transition-colors;
+  }
+}
+
+@layer utilities {
+  .font-gufram {
+    font-family: 'Helvetica Neue', sans-serif;
+    font-weight: 300;
+  }
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+} 
