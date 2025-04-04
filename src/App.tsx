@@ -4,6 +4,7 @@ const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   useEffect(() => {
     // Get initial mute status
@@ -61,13 +62,37 @@ const App: React.FC = () => {
     }
   };
 
+  const handleScreenshot = async () => {
+    try {
+      setIsCapturing(true);
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      if (tab.id) {
+        // Capture the visible tab
+        const dataUrl = await chrome.tabs.captureVisibleTab();
+        
+        // Create a download link
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = `screenshot-${new Date().toISOString().slice(0, 10)}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error('Error taking screenshot:', error);
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
   return (
     <div 
-      className="w-[100px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
+      className="w-[180px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-4">
         <button 
           onClick={handleHardRefresh}
           onMouseEnter={() => setActiveTooltip('refresh')}
@@ -127,6 +152,32 @@ const App: React.FC = () => {
             )}
           </svg>
         </button>
+
+        <button 
+          onClick={handleScreenshot}
+          onMouseEnter={() => setActiveTooltip('screenshot')}
+          onMouseLeave={() => setActiveTooltip(null)}
+          disabled={isCapturing}
+          className={`p-2 hover:bg-gray-100 rounded-full transition-all duration-200 flex items-center justify-center ${
+            isCapturing ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="18" 
+            height="18" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+            className={isCapturing ? 'animate-spin' : ''}
+          >
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+        </button>
       </div>
       
       <div className={`transition-all duration-300 ${isHovered ? 'h-[20px]' : 'h-0'}`}>
@@ -135,7 +186,9 @@ const App: React.FC = () => {
             activeTooltip ? 'opacity-100' : 'opacity-0'
           }`}
         >
-          {activeTooltip === 'refresh' ? 'Hard Refresh' : activeTooltip === 'mute' ? (isMuted ? 'Unmute Tab' : 'Mute Tab') : ''}
+          {activeTooltip === 'refresh' ? 'Hard Refresh' : 
+           activeTooltip === 'mute' ? (isMuted ? 'Unmute Tab' : 'Mute Tab') :
+           activeTooltip === 'screenshot' ? (isCapturing ? 'Capturing...' : 'Take Screenshot') : ''}
         </span>
       </div>
     </div>
