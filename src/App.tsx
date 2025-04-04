@@ -10,6 +10,8 @@ const App: React.FC = () => {
   const [password, setPassword] = useState('');
   const [storedPassword, setStoredPassword] = useState<string | null>(null);
   const [isPiPActive, setIsPiPActive] = useState(false);
+  const [isShortening, setIsShortening] = useState(false);
+  const [showCopied, setShowCopied] = useState(false);
 
   useEffect(() => {
     // Get initial mute status
@@ -375,13 +377,40 @@ const App: React.FC = () => {
     }
   };
 
+  const handleShortenUrl = async () => {
+    try {
+      setIsShortening(true);
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      if (tab.url) {
+        // Use TinyURL API to shorten the URL
+        const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(tab.url)}`);
+        if (!response.ok) throw new Error('Failed to shorten URL');
+        
+        const shortUrl = await response.text();
+        
+        // Copy to clipboard
+        await navigator.clipboard.writeText(shortUrl);
+        
+        // Show copied notification
+        setShowCopied(true);
+        setTimeout(() => setShowCopied(false), 2000);
+      }
+    } catch (error) {
+      console.error('Error shortening URL:', error);
+      alert('Failed to shorten URL');
+    } finally {
+      setIsShortening(false);
+    }
+  };
+
   return (
     <div 
-      className="w-[220px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
+      className="w-[260px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-3">
         <button 
           onClick={handleHardRefresh}
           onMouseEnter={() => setActiveTooltip('refresh')}
@@ -531,6 +560,41 @@ const App: React.FC = () => {
             )}
           </svg>
         </button>
+
+        <button 
+          onClick={handleShortenUrl}
+          onMouseEnter={() => setActiveTooltip('shorten')}
+          onMouseLeave={() => setActiveTooltip(null)}
+          disabled={isShortening}
+          className={`p-2 hover:bg-gray-100 rounded-full transition-all duration-200 flex items-center justify-center relative ${
+            isShortening ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="18" 
+            height="18" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+            className={isShortening ? 'animate-spin' : ''}
+          >
+            <path d="M13.5 10.5L21 3"></path>
+            <path d="M21 3h-7"></path>
+            <path d="M21 3v7"></path>
+            <path d="M10.5 13.5L3 21"></path>
+            <path d="M3 21h7"></path>
+            <path d="M3 21v-7"></path>
+          </svg>
+          {showCopied && (
+            <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded">
+              Copied!
+            </div>
+          )}
+        </button>
       </div>
 
       {showPasswordInput && (
@@ -576,7 +640,8 @@ const App: React.FC = () => {
            activeTooltip === 'mute' ? (isMuted ? 'Unmute Tab' : 'Mute Tab') :
            activeTooltip === 'screenshot' ? (isCapturing ? 'Capturing...' : 'Take Screenshot') :
            activeTooltip === 'lock' ? (isLocked ? 'Unlock Tab' : 'Lock Tab') :
-           activeTooltip === 'pip' ? (isPiPActive ? 'Exit PiP' : 'Enter PiP') : ''}
+           activeTooltip === 'pip' ? (isPiPActive ? 'Exit PiP' : 'Enter PiP') :
+           activeTooltip === 'shorten' ? (isShortening ? 'Shortening...' : 'Shorten URL') : ''}
         </span>
       </div>
     </div>

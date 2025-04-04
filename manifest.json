@@ -9,10 +9,12 @@
     "cookies",
     "storage",
     "tabCapture",
-    "scripting"
+    "scripting",
+    "clipboardWrite"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://tinyurl.com/*"
   ],
   "action": {
     "default_popup": "index.html",
