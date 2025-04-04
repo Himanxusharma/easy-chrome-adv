@@ -35,7 +35,7 @@ const App: React.FC = () => {
     const checkTabLockStatus = async () => {
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab.id) {
+        if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
           const results = await chrome.scripting.executeScript({
             target: { tabId: tab.id },
             func: () => {
@@ -50,8 +50,13 @@ const App: React.FC = () => {
             }
           });
           setIsLocked(results[0]?.result?.isLocked || false);
+        } else {
+          // Reset lock state for restricted pages
+          setIsLocked(false);
         }
       } catch (error) {
+        // Reset lock state on error
+        setIsLocked(false);
         console.error('Error checking tab lock status:', error);
       }
     };
