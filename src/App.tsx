@@ -9,6 +9,7 @@ const App: React.FC = () => {
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [password, setPassword] = useState('');
   const [storedPassword, setStoredPassword] = useState<string | null>(null);
+  const [isPiPActive, setIsPiPActive] = useState(false);
 
   useEffect(() => {
     // Get initial mute status
@@ -51,6 +52,26 @@ const App: React.FC = () => {
       }
     };
     checkTabLockStatus();
+
+    // Check if any video is in PiP mode
+    const checkPiPStatus = async () => {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab.id) {
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => {
+              const videos = document.querySelectorAll('video');
+              return Array.from(videos).some(video => document.pictureInPictureElement === video);
+            }
+          });
+          setIsPiPActive(results[0]?.result || false);
+        }
+      } catch (error) {
+        console.error('Error checking PiP status:', error);
+      }
+    };
+    checkPiPStatus();
   }, []);
 
   const handleHardRefresh = async () => {
@@ -280,13 +301,85 @@ const App: React.FC = () => {
     }
   };
 
+  const handlePiPToggle = async () => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab.id) {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: async () => {
+            try {
+              if (document.pictureInPictureElement) {
+                // Exit PiP mode
+                await document.exitPictureInPicture();
+                return { success: true, action: 'exit' };
+              } else {
+                // Special handling for different platforms
+                const url = window.location.href;
+                let video: HTMLVideoElement | null = null;
+
+                if (url.includes('youtube.com/shorts')) {
+                  // YouTube Shorts
+                  video = document.querySelector('#shorts-player video') as HTMLVideoElement ||
+                         document.querySelector('.html5-main-video') as HTMLVideoElement;
+                } else if (url.includes('instagram.com/reels')) {
+                  // Instagram Reels
+                  video = document.querySelector('video[preload="auto"]') as HTMLVideoElement ||
+                         document.querySelector('video[type="video/mp4"]') as HTMLVideoElement ||
+                         document.querySelector('.tWeCl') as HTMLVideoElement;
+                } else {
+                  // Regular video handling
+                  const videos = document.querySelectorAll('video');
+                  video = Array.from(videos).find(v => !v.paused) || videos[0] as HTMLVideoElement;
+                }
+
+                if (video) {
+                  // For YouTube Shorts and Instagram Reels, ensure video is playing
+                  if (!video.paused) {
+                    await video.requestPictureInPicture();
+                  } else {
+                    const playPromise = video.play();
+                    if (playPromise !== undefined) {
+                      await playPromise;
+                      await video.requestPictureInPicture();
+                    }
+                  }
+                  return { success: true, action: 'enter' };
+                } else {
+                  return { success: false, error: 'No video found' };
+                }
+              }
+            } catch (error: unknown) {
+              return { 
+                success: false, 
+                error: error instanceof Error ? error.message : 'Unknown error' 
+              };
+            }
+          }
+        });
+        
+        // Update PiP status after toggle
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const videos = document.querySelectorAll('video');
+            return Array.from(videos).some(video => document.pictureInPictureElement === video);
+          }
+        });
+        setIsPiPActive(results[0]?.result || false);
+      }
+    } catch (error) {
+      console.error('Error toggling PiP:', error);
+    }
+  };
+
   return (
     <div 
-      className="w-[180px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
+      className="w-[220px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center justify-center gap-4">
+      <div className="flex items-center justify-center gap-2">
         <button 
           onClick={handleHardRefresh}
           onMouseEnter={() => setActiveTooltip('refresh')}
@@ -405,6 +498,37 @@ const App: React.FC = () => {
             )}
           </svg>
         </button>
+
+        <button 
+          onClick={handlePiPToggle}
+          onMouseEnter={() => setActiveTooltip('pip')}
+          onMouseLeave={() => setActiveTooltip(null)}
+          className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200 flex items-center justify-center"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="18" 
+            height="18" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            {isPiPActive ? (
+              <>
+                <rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect>
+                <rect x="8" y="8" width="14" height="14" rx="2" ry="2"></rect>
+              </>
+            ) : (
+              <>
+                <rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect>
+                <rect x="14" y="14" width="8" height="8" rx="1" ry="1"></rect>
+              </>
+            )}
+          </svg>
+        </button>
       </div>
 
       {showPasswordInput && (
@@ -449,7 +573,8 @@ const App: React.FC = () => {
           {activeTooltip === 'refresh' ? 'Hard Refresh' : 
            activeTooltip === 'mute' ? (isMuted ? 'Unmute Tab' : 'Mute Tab') :
            activeTooltip === 'screenshot' ? (isCapturing ? 'Capturing...' : 'Take Screenshot') :
-           activeTooltip === 'lock' ? (isLocked ? 'Unlock Tab' : 'Lock Tab') : ''}
+           activeTooltip === 'lock' ? (isLocked ? 'Unlock Tab' : 'Lock Tab') :
+           activeTooltip === 'pip' ? (isPiPActive ? 'Exit PiP' : 'Enter PiP') : ''}
         </span>
       </div>
     </div>
