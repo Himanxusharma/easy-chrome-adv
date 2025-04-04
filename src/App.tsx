@@ -758,13 +758,13 @@ const App: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={storedPassword ? "Enter password" : "Set new password"}
-              className="w-full px-2 py-1 text-sm border rounded"
+              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-sm hover:shadow-md transition-all duration-200"
               autoFocus
             />
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="flex-1 px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                className="flex-1 px-2 py-1 text-sm bg-black text-white rounded hover:bg-white hover:text-black hover:border hover:border-black transition-colors duration-200"
               >
                 {!storedPassword ? "Set Password" : (isLocked ? "Unlock" : "Lock")}
               </button>
@@ -792,7 +792,7 @@ const App: React.FC = () => {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Type your note here..."
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded resize-none focus:border-black focus:ring-1 focus:ring-black shadow-sm hover:shadow-md transition-all duration-200"
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded resize-none focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-sm hover:shadow-md transition-all duration-200"
                 rows={3}
                 autoFocus
               />
