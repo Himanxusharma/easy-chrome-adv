@@ -12,14 +12,34 @@ const App: React.FC = () => {
   const [isPiPActive, setIsPiPActive] = useState(false);
   const [isShortening, setIsShortening] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Helper function to check if URL is restricted
+  const isRestrictedUrl = (url: string | undefined) => {
+    if (!url) return true;
+    return url.startsWith('chrome://') || url.startsWith('chrome-extension://');
+  };
+
+  // Helper function to show error message
+  const showError = (message: string) => {
+    setErrorMessage(message);
+    setTimeout(() => setErrorMessage(null), 3000);
+  };
 
   useEffect(() => {
     // Get initial mute status
     const getInitialMuteStatus = async () => {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab.id) {
-        const tabInfo = await chrome.tabs.get(tab.id);
-        setIsMuted(tabInfo.mutedInfo?.muted || false);
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab.id) {
+          const tabInfo = await chrome.tabs.get(tab.id);
+          setIsMuted(tabInfo.mutedInfo?.muted || false);
+        }
+      } catch (error: unknown) {
+        // Don't show error for restricted pages
+        if (error instanceof Error && !isRestrictedUrl(error.message)) {
+          showError("Failed to get mute status");
+        }
       }
     };
     getInitialMuteStatus();
@@ -35,29 +55,31 @@ const App: React.FC = () => {
     const checkTabLockStatus = async () => {
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
+        if (isRestrictedUrl(tab.url)) {
+          setIsLocked(false);
+          return;
+        }
+        
+        if (tab.id) {
           const results = await chrome.scripting.executeScript({
             target: { tabId: tab.id },
             func: () => {
-              // Check for the presence of our lock overlay elements
               const hasLockOverlay = document.getElementById('tab-lock-overlay') !== null;
               const hasBackgroundOverlay = document.getElementById('tab-lock-background') !== null;
               const hasContentWrapper = document.getElementById('original-content-wrapper') !== null;
-              
               return {
                 isLocked: hasLockOverlay && hasBackgroundOverlay && hasContentWrapper
               };
             }
           });
           setIsLocked(results[0]?.result?.isLocked || false);
-        } else {
-          // Reset lock state for restricted pages
-          setIsLocked(false);
         }
-      } catch (error) {
-        // Reset lock state on error
+      } catch (error: unknown) {
+        // Don't show error for restricted pages
+        if (error instanceof Error && !isRestrictedUrl(error.message)) {
+          showError("Failed to check lock status");
+        }
         setIsLocked(false);
-        console.error('Error checking tab lock status:', error);
       }
     };
     checkTabLockStatus();
@@ -66,6 +88,11 @@ const App: React.FC = () => {
     const checkPiPStatus = async () => {
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (isRestrictedUrl(tab.url)) {
+          setIsPiPActive(false);
+          return;
+        }
+        
         if (tab.id) {
           const results = await chrome.scripting.executeScript({
             target: { tabId: tab.id },
@@ -76,8 +103,12 @@ const App: React.FC = () => {
           });
           setIsPiPActive(results[0]?.result || false);
         }
-      } catch (error) {
-        console.error('Error checking PiP status:', error);
+      } catch (error: unknown) {
+        // Don't show error for restricted pages
+        if (error instanceof Error && !isRestrictedUrl(error.message)) {
+          showError("Failed to check PiP status");
+        }
+        setIsPiPActive(false);
       }
     };
     checkPiPStatus();
@@ -85,53 +116,55 @@ const App: React.FC = () => {
 
   const handleHardRefresh = async () => {
     try {
-      // Get the current active tab
+      setShowPasswordInput(false); // Close password modal
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
-      if (tab.id && tab.url) {
+      if (tab.id) {
         // Clear cache and cookies for the current domain
-        const url = new URL(tab.url);
-        const origin = `${url.protocol}//${url.hostname}`;
-        
-        // Clear cache for the current domain
-        await chrome.browsingData.remove(
-          {
-            origins: [origin]
-          },
-          {
-            cache: true,
-            cacheStorage: true,
-            cookies: true,
-            localStorage: true,
-            serviceWorkers: true
-          }
-        );
+        if (tab.url) {
+          const url = new URL(tab.url);
+          const origin = `${url.protocol}//${url.hostname}`;
+          
+          // Clear cache for the current domain
+          await chrome.browsingData.remove(
+            {
+              origins: [origin]
+            },
+            {
+              cache: true,
+              cacheStorage: true,
+              cookies: true,
+              localStorage: true,
+              serviceWorkers: true
+            }
+          );
+        }
 
         // Hard refresh the page
         await chrome.tabs.reload(tab.id, { bypassCache: true });
       }
     } catch (error) {
-      console.error('Error during hard refresh:', error);
+      showError("Failed to refresh the page");
     }
   };
 
   const handleMuteToggle = async () => {
     try {
+      setShowPasswordInput(false); // Close password modal
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab.id) {
         await chrome.tabs.update(tab.id, { muted: !isMuted });
         setIsMuted(!isMuted);
       }
     } catch (error) {
-      console.error('Error toggling mute:', error);
+      showError("Failed to toggle mute");
     }
   };
 
   const handleScreenshot = async () => {
     try {
-      setIsCapturing(true);
+      setShowPasswordInput(false); // Close password modal
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
+      setIsCapturing(true);
       if (tab.id) {
         // Capture the visible tab
         const dataUrl = await chrome.tabs.captureVisibleTab();
@@ -145,21 +178,28 @@ const App: React.FC = () => {
         document.body.removeChild(link);
       }
     } catch (error) {
-      console.error('Error taking screenshot:', error);
+      showError("Failed to capture screenshot");
     } finally {
       setIsCapturing(false);
     }
   };
 
   const handleLockToggle = async () => {
-    if (!storedPassword) {
-      // If no password is set, show password input
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (isRestrictedUrl(tab.url)) {
+        showError("Can't lock this type of page");
+        return;
+      }
+      
+      if (!storedPassword) {
+        setShowPasswordInput(true);
+        return;
+      }
       setShowPasswordInput(true);
-      return;
+    } catch (error) {
+      showError("Failed to toggle lock");
     }
-
-    // Always show password input for both lock and unlock
-    setShowPasswordInput(true);
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
@@ -275,7 +315,8 @@ const App: React.FC = () => {
         setIsLocked(true);
       }
     } catch (error) {
-      console.error('Error locking tab:', error);
+      showError("Failed to lock the tab");
+      setIsLocked(false);
     }
   };
 
@@ -306,44 +347,45 @@ const App: React.FC = () => {
         setIsLocked(false);
       }
     } catch (error) {
-      console.error('Error unlocking tab:', error);
+      showError("Failed to unlock the tab");
+      setIsLocked(true);
     }
   };
 
   const handlePiPToggle = async () => {
     try {
+      setShowPasswordInput(false); // Close password modal
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (isRestrictedUrl(tab.url)) {
+        showError("Can't use Picture-in-Picture on this page");
+        return;
+      }
+      
       if (tab.id) {
-        await chrome.scripting.executeScript({
+        const result = await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           func: async () => {
             try {
               if (document.pictureInPictureElement) {
-                // Exit PiP mode
                 await document.exitPictureInPicture();
                 return { success: true, action: 'exit' };
               } else {
-                // Special handling for different platforms
                 const url = window.location.href;
                 let video: HTMLVideoElement | null = null;
 
                 if (url.includes('youtube.com/shorts')) {
-                  // YouTube Shorts
                   video = document.querySelector('#shorts-player video') as HTMLVideoElement ||
                          document.querySelector('.html5-main-video') as HTMLVideoElement;
                 } else if (url.includes('instagram.com/reels')) {
-                  // Instagram Reels
                   video = document.querySelector('video[preload="auto"]') as HTMLVideoElement ||
                          document.querySelector('video[type="video/mp4"]') as HTMLVideoElement ||
                          document.querySelector('.tWeCl') as HTMLVideoElement;
                 } else {
-                  // Regular video handling
                   const videos = document.querySelectorAll('video');
                   video = Array.from(videos).find(v => !v.paused) || videos[0] as HTMLVideoElement;
                 }
 
                 if (video) {
-                  // For YouTube Shorts and Instagram Reels, ensure video is playing
                   if (!video.paused) {
                     await video.requestPictureInPicture();
                   } else {
@@ -355,7 +397,7 @@ const App: React.FC = () => {
                   }
                   return { success: true, action: 'enter' };
                 } else {
-                  return { success: false, error: 'No video found' };
+                  return { success: false, error: 'No video found on this page' };
                 }
               }
             } catch (error: unknown) {
@@ -366,8 +408,14 @@ const App: React.FC = () => {
             }
           }
         });
+
+        // Check for errors in the result
+        if (!result[0]?.result?.success) {
+          showError(result[0]?.result?.error || "Failed to toggle Picture-in-Picture");
+          return;
+        }
         
-        // Update PiP status after toggle
+        // Update PiP status after successful toggle
         const results = await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           func: () => {
@@ -377,33 +425,46 @@ const App: React.FC = () => {
         });
         setIsPiPActive(results[0]?.result || false);
       }
-    } catch (error) {
-      console.error('Error toggling PiP:', error);
+    } catch (error: unknown) {
+      // Don't show error for restricted pages
+      if (error instanceof Error && !isRestrictedUrl(error.message)) {
+        showError("Failed to toggle Picture-in-Picture");
+      }
     }
   };
 
   const handleShortenUrl = async () => {
     try {
-      setIsShortening(true);
+      setShowPasswordInput(false); // Close password modal
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
-      if (tab.url) {
-        // Use TinyURL API to shorten the URL
-        const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(tab.url)}`);
-        if (!response.ok) throw new Error('Failed to shorten URL');
-        
-        const shortUrl = await response.text();
-        
-        // Copy to clipboard
-        await navigator.clipboard.writeText(shortUrl);
-        
-        // Show copied notification
-        setShowCopied(true);
-        setTimeout(() => setShowCopied(false), 2000);
+      if (isRestrictedUrl(tab.url)) {
+        showError("Can't shorten this type of URL");
+        return;
       }
+      
+      setIsShortening(true);
+      if (!tab.url) {
+        showError("No URL to shorten");
+        return;
+      }
+
+      // Use TinyURL API to shorten the URL
+      const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(tab.url)}`);
+      if (!response.ok) {
+        showError("Failed to shorten URL");
+        return;
+      }
+      
+      const shortUrl = await response.text();
+      
+      // Copy to clipboard
+      await navigator.clipboard.writeText(shortUrl);
+      
+      // Show copied notification
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
     } catch (error) {
-      console.error('Error shortening URL:', error);
-      alert('Failed to shorten URL');
+      showError("Failed to shorten URL");
     } finally {
       setIsShortening(false);
     }
@@ -415,6 +476,14 @@ const App: React.FC = () => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {errorMessage && (
+        <div className="w-full px-2 mb-1">
+          <div className="w-full bg-red-100 text-red-600 text-[11px] px-2 py-1 rounded text-center">
+            {errorMessage}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-center gap-3">
         <button 
           onClick={handleHardRefresh}
