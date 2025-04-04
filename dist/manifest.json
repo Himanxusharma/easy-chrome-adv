@@ -8,7 +8,8 @@
     "browsingData",
     "cookies",
     "storage",
-    "tabCapture"
+    "tabCapture",
+    "scripting"
   ],
   "host_permissions": [
     "<all_urls>"
