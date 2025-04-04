@@ -16,6 +16,10 @@ const App: React.FC = () => {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [note, setNote] = useState('');
   const [storedNote, setStoredNote] = useState<string | null>(null);
+  const [showAutoRefreshInput, setShowAutoRefreshInput] = useState(false);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0);
+  const [autoRefreshActive, setAutoRefreshActive] = useState(false);
+  const [currentTabId, setCurrentTabId] = useState<number | null>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Helper function to check if URL is restricted
@@ -31,6 +35,19 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    // Get current tab ID
+    const getCurrentTab = async () => {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab.id) {
+          setCurrentTabId(tab.id);
+        }
+      } catch (error) {
+        console.error('Error getting current tab:', error);
+      }
+    };
+    getCurrentTab();
+
     // Get initial mute status
     const getInitialMuteStatus = async () => {
       try {
@@ -123,12 +140,88 @@ const App: React.FC = () => {
         setStoredNote(result.quickNote);
       }
     });
+
+    // Check if auto-refresh is active for current tab
+    const checkAutoRefreshStatus = async () => {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab && tab.id) {
+          const tabId = tab.id.toString();
+          chrome.storage.local.get(['autoRefreshTabs'], (result) => {
+            const autoRefreshTabs: Record<string, number> = result.autoRefreshTabs || {};
+            if (autoRefreshTabs[tabId]) {
+              setAutoRefreshInterval(autoRefreshTabs[tabId]);
+              setAutoRefreshActive(true);
+            } else {
+              setAutoRefreshActive(false);
+              setAutoRefreshInterval(30); // Default value
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error checking auto-refresh status:', error);
+      }
+    };
+    checkAutoRefreshStatus();
   }, []);
+
+  // Handle auto-refresh functionality
+  useEffect(() => {
+    let refreshTimer: number | null = null;
+    
+    const setupAutoRefresh = async () => {
+      if (!currentTabId) return;
+
+      if (autoRefreshActive && autoRefreshInterval > 0) {
+        // Store the auto-refresh settings for this specific tab
+        chrome.storage.local.get(['autoRefreshTabs'], (result) => {
+          const autoRefreshTabs: Record<string, number> = result.autoRefreshTabs || {};
+          const tabId = currentTabId.toString();
+          autoRefreshTabs[tabId] = autoRefreshInterval;
+          chrome.storage.local.set({ autoRefreshTabs });
+        });
+        
+        // Clear any existing timer
+        if (refreshTimer) {
+          window.clearInterval(refreshTimer);
+        }
+        
+        // Setup interval to refresh the page
+        refreshTimer = window.setInterval(() => {
+          chrome.tabs.reload(currentTabId, { bypassCache: true });
+        }, autoRefreshInterval * 1000);
+      } else if (!autoRefreshActive) {
+        // Remove this tab from auto-refresh tabs
+        chrome.storage.local.get(['autoRefreshTabs'], (result) => {
+          const autoRefreshTabs: Record<string, number> = result.autoRefreshTabs || {};
+          const tabId = currentTabId.toString();
+          if (autoRefreshTabs[tabId]) {
+            delete autoRefreshTabs[tabId];
+            chrome.storage.local.set({ autoRefreshTabs });
+          }
+        });
+
+        if (refreshTimer) {
+          window.clearInterval(refreshTimer);
+        }
+      }
+    };
+    
+    setupAutoRefresh();
+    
+    // Cleanup function
+    return () => {
+      if (refreshTimer) {
+        window.clearInterval(refreshTimer);
+      }
+    };
+  }, [autoRefreshActive, autoRefreshInterval, currentTabId]);
 
   const handleHardRefresh = async () => {
     try {
-      setShowPasswordInput(false); // Close password modal
-      setShowNoteInput(false); // Close note input
+      setShowPasswordInput(false);
+      setShowNoteInput(false);
+      setShowAutoRefreshInput(false); // Close auto-refresh input
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab.id) {
         // Clear cache and cookies for the current domain
@@ -161,8 +254,9 @@ const App: React.FC = () => {
 
   const handleMuteToggle = async () => {
     try {
-      setShowPasswordInput(false); // Close password modal
-      setShowNoteInput(false); // Close note input
+      setShowPasswordInput(false);
+      setShowNoteInput(false);
+      setShowAutoRefreshInput(false); // Close auto-refresh input
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab.id) {
         await chrome.tabs.update(tab.id, { muted: !isMuted });
@@ -175,8 +269,9 @@ const App: React.FC = () => {
 
   const handleScreenshot = async () => {
     try {
-      setShowPasswordInput(false); // Close password modal
-      setShowNoteInput(false); // Close note input
+      setShowPasswordInput(false);
+      setShowNoteInput(false);
+      setShowAutoRefreshInput(false); // Close auto-refresh input
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       setIsCapturing(true);
       if (tab.id) {
@@ -200,7 +295,8 @@ const App: React.FC = () => {
 
   const handleLockToggle = async () => {
     try {
-      setShowNoteInput(false); // Close note input
+      setShowNoteInput(false);
+      setShowAutoRefreshInput(false); // Close auto-refresh input
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (isRestrictedUrl(tab.url)) {
         showError("Can't lock this type of page");
@@ -369,8 +465,9 @@ const App: React.FC = () => {
 
   const handlePiPToggle = async () => {
     try {
-      setShowPasswordInput(false); // Close password modal
-      setShowNoteInput(false); // Close note input
+      setShowPasswordInput(false);
+      setShowNoteInput(false);
+      setShowAutoRefreshInput(false); // Close auto-refresh input
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (isRestrictedUrl(tab.url)) {
         showError("Can't use Picture-in-Picture on this page");
@@ -451,8 +548,9 @@ const App: React.FC = () => {
 
   const handleShortenUrl = async () => {
     try {
-      setShowPasswordInput(false); // Close password modal
-      setShowNoteInput(false); // Close note input
+      setShowPasswordInput(false);
+      setShowNoteInput(false);
+      setShowAutoRefreshInput(false); // Close auto-refresh input
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (isRestrictedUrl(tab.url)) {
         showError("Can't shorten this type of URL");
@@ -488,9 +586,10 @@ const App: React.FC = () => {
   };
 
   const handleNoteToggle = () => {
-    setShowPasswordInput(false); // Close password modal
+    setShowPasswordInput(false);
+    setShowAutoRefreshInput(false); // Close auto-refresh input
     if (storedNote) {
-      setNote(storedNote); // Load existing note into input
+      setNote(storedNote);
       // Use setTimeout to ensure the textarea is rendered before setting cursor position
       setTimeout(() => {
         if (textareaRef.current) {
@@ -527,9 +626,33 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAutoRefreshToggle = () => {
+    setShowPasswordInput(false);
+    setShowNoteInput(false);
+    setShowAutoRefreshInput(!showAutoRefreshInput);
+  };
+
+  const startAutoRefresh = async () => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab.id) {
+        setCurrentTabId(tab.id);
+        setAutoRefreshActive(true);
+        setShowAutoRefreshInput(false);
+      }
+    } catch (error) {
+      showError("Failed to start auto-refresh");
+    }
+  };
+
+  const stopAutoRefresh = () => {
+    setAutoRefreshActive(false);
+    setShowAutoRefreshInput(false);
+  };
+
   return (
     <div 
-      className="w-[320px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
+      className="w-[380px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -537,6 +660,19 @@ const App: React.FC = () => {
         <div className="w-full px-2 mb-1">
           <div className="w-full bg-red-100 text-red-600 text-[11px] px-2 py-1 rounded text-center">
             {errorMessage}
+          </div>
+        </div>
+      )}
+
+      {/* Auto-refresh status indicator */}
+      {autoRefreshActive && !showAutoRefreshInput && (
+        <div className="w-full px-2 mb-1">
+          <div className="w-full bg-green-50 text-green-600 text-[11px] px-2 py-1 rounded text-center flex items-center justify-center">
+            <svg className="w-3 h-3 mr-1 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Auto-refreshing this tab every {autoRefreshInterval} seconds
           </div>
         </div>
       )}
@@ -558,7 +694,7 @@ const App: React.FC = () => {
             strokeWidth="2" 
             strokeLinecap="round" 
             strokeLinejoin="round"
-            className="transform hover:rotate-180 transition-transform duration-500"
+            className={`transform hover:rotate-180 transition-transform duration-500 ${autoRefreshActive ? 'text-green-500' : ''}`}
           >
             <path d="M23 4v6h-6"></path>
             <path d="M1 20v-6h6"></path>
@@ -566,6 +702,28 @@ const App: React.FC = () => {
           </svg>
         </button>
         
+        <button 
+          onClick={handleAutoRefreshToggle}
+          onMouseEnter={() => setActiveTooltip('autoRefresh')}
+          onMouseLeave={() => setActiveTooltip(null)}
+          className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200 flex items-center justify-center"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="18" 
+            height="18" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke={autoRefreshActive ? "#16a34a" : "currentColor"} 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </button>
+
         <button 
           onClick={handleMuteToggle}
           onMouseEnter={() => setActiveTooltip('mute')}
@@ -830,6 +988,65 @@ const App: React.FC = () => {
         </div>
       )}
       
+      {showAutoRefreshInput && (
+        <div className="w-full p-2">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center">
+              <label className="text-sm mr-2">Refresh every:</label>
+              <input
+                type="number"
+                min="5"
+                max="3600"
+                value={autoRefreshInterval || ''}
+                onChange={(e) => setAutoRefreshInterval(parseInt(e.target.value) || 0)}
+                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-sm transition-all duration-200"
+                placeholder="Seconds"
+              />
+              <span className="text-sm ml-2">seconds</span>
+            </div>
+            <div className="text-[10px] text-gray-500 mb-2">
+              {autoRefreshActive 
+                ? `Auto-refreshing this tab every ${autoRefreshInterval} seconds` 
+                : 'Minimum 5 seconds. Recommended: 30+ seconds'}
+            </div>
+            {autoRefreshActive && (
+              <div className="text-[11px] text-amber-600 bg-amber-50 p-2 rounded mb-2">
+                <strong>Warning:</strong> Auto-refresh will stop working if you close this extension popup. Keep it open.
+              </div>
+            )}
+            <div className="text-[10px] text-blue-600 bg-blue-50 p-2 rounded mb-2">
+              <strong>Tip:</strong> You can set different refresh intervals for different tabs. Each tab refreshes independently.
+            </div>
+            <div className="flex gap-2">
+              {!autoRefreshActive ? (
+                <button
+                  onClick={startAutoRefresh}
+                  disabled={!autoRefreshInterval || autoRefreshInterval < 5}
+                  className={`flex-1 px-2 py-1 text-sm bg-black text-white rounded hover:bg-white hover:text-black hover:border hover:border-black transition-colors duration-200 ${
+                    !autoRefreshInterval || autoRefreshInterval < 5 ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  Start Auto-Refresh
+                </button>
+              ) : (
+                <button
+                  onClick={stopAutoRefresh}
+                  className="flex-1 px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-white hover:text-red-500 hover:border hover:border-red-500 transition-colors duration-200"
+                >
+                  Stop Auto-Refresh
+                </button>
+              )}
+              <button
+                onClick={() => setShowAutoRefreshInput(false)}
+                className="px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className={`transition-all duration-300 ${isHovered ? 'h-[20px]' : 'h-0'}`}>
         <span 
           className={`text-[10px] text-gray-500 transition-all duration-300 ${
@@ -837,6 +1054,7 @@ const App: React.FC = () => {
           }`}
         >
           {activeTooltip === 'refresh' ? 'Hard Refresh' : 
+           activeTooltip === 'autoRefresh' ? (autoRefreshActive ? `Auto-Refresh (${autoRefreshInterval}s)` : 'Auto-Refresh') :
            activeTooltip === 'mute' ? (isMuted ? 'Unmute Tab' : 'Mute Tab') :
            activeTooltip === 'screenshot' ? (isCapturing ? 'Capturing...' : 'Take Screenshot') :
            activeTooltip === 'lock' ? (isLocked ? 'Unlock Tab' : 'Lock Tab') :
