@@ -37,15 +37,17 @@ const App: React.FC = () => {
           const results = await chrome.scripting.executeScript({
             target: { tabId: tab.id },
             func: () => {
+              // Check for the presence of our lock overlay elements
+              const hasLockOverlay = document.getElementById('tab-lock-overlay') !== null;
+              const hasBackgroundOverlay = document.getElementById('tab-lock-background') !== null;
+              const hasContentWrapper = document.getElementById('original-content-wrapper') !== null;
+              
               return {
-                isLocked: document.body.style.visibility === 'hidden' && 
-                         document.body.style.filter === 'blur(10px)'
+                isLocked: hasLockOverlay && hasBackgroundOverlay && hasContentWrapper
               };
             }
           });
-          if (results[0]?.result?.isLocked) {
-            setIsLocked(true);
-          }
+          setIsLocked(results[0]?.result?.isLocked || false);
         }
       } catch (error) {
         console.error('Error checking tab lock status:', error);
