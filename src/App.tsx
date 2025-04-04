@@ -13,6 +13,10 @@ const App: React.FC = () => {
   const [isShortening, setIsShortening] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [note, setNote] = useState('');
+  const [storedNote, setStoredNote] = useState<string | null>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Helper function to check if URL is restricted
   const isRestrictedUrl = (url: string | undefined) => {
@@ -112,11 +116,19 @@ const App: React.FC = () => {
       }
     };
     checkPiPStatus();
+
+    // Get stored note on component mount
+    chrome.storage.local.get(['quickNote'], (result) => {
+      if (result.quickNote) {
+        setStoredNote(result.quickNote);
+      }
+    });
   }, []);
 
   const handleHardRefresh = async () => {
     try {
       setShowPasswordInput(false); // Close password modal
+      setShowNoteInput(false); // Close note input
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab.id) {
         // Clear cache and cookies for the current domain
@@ -150,6 +162,7 @@ const App: React.FC = () => {
   const handleMuteToggle = async () => {
     try {
       setShowPasswordInput(false); // Close password modal
+      setShowNoteInput(false); // Close note input
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab.id) {
         await chrome.tabs.update(tab.id, { muted: !isMuted });
@@ -163,6 +176,7 @@ const App: React.FC = () => {
   const handleScreenshot = async () => {
     try {
       setShowPasswordInput(false); // Close password modal
+      setShowNoteInput(false); // Close note input
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       setIsCapturing(true);
       if (tab.id) {
@@ -186,6 +200,7 @@ const App: React.FC = () => {
 
   const handleLockToggle = async () => {
     try {
+      setShowNoteInput(false); // Close note input
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (isRestrictedUrl(tab.url)) {
         showError("Can't lock this type of page");
@@ -355,6 +370,7 @@ const App: React.FC = () => {
   const handlePiPToggle = async () => {
     try {
       setShowPasswordInput(false); // Close password modal
+      setShowNoteInput(false); // Close note input
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (isRestrictedUrl(tab.url)) {
         showError("Can't use Picture-in-Picture on this page");
@@ -436,6 +452,7 @@ const App: React.FC = () => {
   const handleShortenUrl = async () => {
     try {
       setShowPasswordInput(false); // Close password modal
+      setShowNoteInput(false); // Close note input
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (isRestrictedUrl(tab.url)) {
         showError("Can't shorten this type of URL");
@@ -470,9 +487,49 @@ const App: React.FC = () => {
     }
   };
 
+  const handleNoteToggle = () => {
+    setShowPasswordInput(false); // Close password modal
+    if (storedNote) {
+      setNote(storedNote); // Load existing note into input
+      // Use setTimeout to ensure the textarea is rendered before setting cursor position
+      setTimeout(() => {
+        if (textareaRef.current) {
+          const length = storedNote.length;
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(length, length);
+        }
+      }, 0);
+    }
+    setShowNoteInput(!showNoteInput);
+  };
+
+  const handleNoteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (note.trim()) {
+        await chrome.storage.local.set({ quickNote: note });
+        setStoredNote(note);
+        setNote('');
+        setShowNoteInput(false);
+      }
+    } catch (error) {
+      showError("Failed to save note");
+    }
+  };
+
+  const handleClearNote = async () => {
+    try {
+      setNote(''); // Clear the input text
+      await chrome.storage.local.remove(['quickNote']); // Remove from storage
+      setStoredNote(null); // Clear the stored note state
+    } catch (error) {
+      showError("Failed to clear note");
+    }
+  };
+
   return (
     <div 
-      className="w-[260px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
+      className="w-[320px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -669,6 +726,28 @@ const App: React.FC = () => {
             </div>
           )}
         </button>
+
+        <button 
+          onClick={handleNoteToggle}
+          onMouseEnter={() => setActiveTooltip('note')}
+          onMouseLeave={() => setActiveTooltip(null)}
+          className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200 flex items-center justify-center"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="18" 
+            height="18" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+          </svg>
+        </button>
       </div>
 
       {showPasswordInput && (
@@ -703,6 +782,53 @@ const App: React.FC = () => {
           </form>
         </div>
       )}
+
+      {(showNoteInput || (storedNote && !showPasswordInput)) && (
+        <div className="w-full p-2">
+          {showNoteInput ? (
+            <form onSubmit={handleNoteSubmit} className="flex flex-col gap-2">
+              <textarea
+                ref={textareaRef}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Type your note here..."
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded resize-none focus:border-black focus:ring-1 focus:ring-black shadow-sm hover:shadow-md transition-all duration-200"
+                rows={3}
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 px-2 py-1 text-sm bg-black text-white rounded hover:bg-white hover:text-black hover:border hover:border-black transition-colors duration-200"
+                >
+                  Save Note
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearNote}
+                  className="px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 transition-colors duration-200"
+                >
+                  Clear
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div>
+              <div className="text-sm text-gray-700 whitespace-pre-wrap break-words">
+                {storedNote}
+              </div>
+              <div className="flex justify-end mt-1">
+                <button
+                  onClick={handleNoteToggle}
+                  className="text-xs text-black hover:text-gray-600 transition-colors duration-200"
+                >
+                  Edit
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       
       <div className={`transition-all duration-300 ${isHovered ? 'h-[20px]' : 'h-0'}`}>
         <span 
@@ -715,7 +841,8 @@ const App: React.FC = () => {
            activeTooltip === 'screenshot' ? (isCapturing ? 'Capturing...' : 'Take Screenshot') :
            activeTooltip === 'lock' ? (isLocked ? 'Unlock Tab' : 'Lock Tab') :
            activeTooltip === 'pip' ? (isPiPActive ? 'Exit PiP' : 'Enter PiP') :
-           activeTooltip === 'shorten' ? (isShortening ? 'Shortening...' : 'Shorten URL') : ''}
+           activeTooltip === 'shorten' ? (isShortening ? 'Shortening...' : 'Shorten URL') :
+           activeTooltip === 'note' ? 'Quick Note' : ''}
         </span>
       </div>
     </div>
