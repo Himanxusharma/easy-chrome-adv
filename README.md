@@ -15,6 +15,11 @@ A powerful Chrome extension that supercharges your browsing experience with esse
 - Instant page reload
 - Perfect for developers and testers
 
+### ⏱️ Auto-Refresh
+- Tab-specific refresh intervals
+- Customizable timing (5-3600 seconds)
+- Multiple tabs refresh independently
+
 ### 🔇 Smart Mute
 - Quick tab muting/unmuting
 - Visual mute status indicator
@@ -36,7 +41,7 @@ A powerful Chrome extension that supercharges your browsing experience with esse
 - One-click PiP mode
 
 ### 🔗 URL Shortener
-- Instant URL shortening
+- Instant URL shortening via TinyURL
 - Automatic clipboard copy
 - Success notification
 
@@ -47,11 +52,12 @@ A powerful Chrome extension that supercharges your browsing experience with esse
 
 ## 🎨 UI/UX Highlights
 
-- **Minimalist Design**: Clean, modern interface
-- **Smart Tooltips**: Context-aware tooltips
+- **Minimalist Design**: Clean, modern interface with a black color scheme
+- **Smart Tooltips**: Context-aware tooltips provide guidance
 - **Smooth Animations**: Fluid transitions and effects
 - **Responsive Layout**: Adapts to content dynamically
-- **Error Handling**: User-friendly error messages
+- **Error Handling**: User-friendly error messages for restricted pages
+- **Tab-Specific Features**: Features like auto-refresh work independently on different tabs
 
 ## 🛠️ Installation
 
@@ -59,7 +65,7 @@ A powerful Chrome extension that supercharges your browsing experience with esse
 2. Open Chrome and go to `chrome://extensions/`
 3. Enable "Developer mode"
 4. Click "Load unpacked"
-5. Select the extension directory
+5. Select the `dist` directory
 
 ## 🔧 Development
 
@@ -76,16 +82,27 @@ npm run watch
 
 ## 🎯 Usage
 
-1. Click the extension icon in your toolbar
-2. Choose your desired tool
-3. Follow the on-screen instructions
+### Hard Refresh & Auto-Refresh
+- Click the refresh icon for a one-time hard refresh
+- Click the clock icon to set up auto-refresh intervals
+- Each tab can have its own refresh schedule
 
-## 🌈 Tips & Tricks
+### Tab Management
+- Use the mute button to toggle audio
+- Click the lock icon to password-protect sensitive tabs
+- Enable Picture-in-Picture mode for videos with a single click
 
-- Use `Hard Refresh` when testing website changes
-- `Tab Lock` is perfect for sensitive information
-- `Quick Notes` persist across browser sessions
-- `Picture-in-Picture` works best with video content
+### Productivity Tools
+- Quickly shorten and copy URLs with the link icon
+- Save persistent notes with the pencil icon
+- Access your notes across browser sessions
+
+## 🌈 Pro Tips
+
+- **Error Handling**: The extension shows helpful error messages for restricted pages
+- **Auto-Refresh**: Keep the popup open in a separate window for continuous refreshing
+- **Multiple Tabs**: Set different refresh intervals for different tabs
+- **Quick Notes**: Notes persist across browser sessions
 
 ## 🤝 Contributing
 
@@ -105,6 +122,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-  <p>Made with ❤️ by Himanshu</p>
+  <p>Made with ❤️ by Your Name</p>
   <p>⭐ Star this repository if you find it useful!</p>
 </div>
