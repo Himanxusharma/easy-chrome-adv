@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
 
+interface TabArchive {
+  url: string;
+  title: string;
+  favicon: string;
+  timestamp: number;
+  group?: string;
+}
+
 const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -21,6 +29,11 @@ const App: React.FC = () => {
   const [autoRefreshActive, setAutoRefreshActive] = useState(false);
   const [currentTabId, setCurrentTabId] = useState<number | null>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [archivedTabs, setArchivedTabs] = useState<TabArchive[]>([]);
+  const [archiveSettings, setArchiveSettings] = useState({
+    keepImportant: true
+  });
 
   // Helper function to check if URL is restricted
   const isRestrictedUrl = (url: string | undefined) => {
@@ -588,6 +601,7 @@ const App: React.FC = () => {
   const handleNoteToggle = () => {
     setShowPasswordInput(false);
     setShowAutoRefreshInput(false); // Close auto-refresh input
+    setShowArchiveModal(false); // Close archive modal
     if (storedNote) {
       setNote(storedNote);
       // Use setTimeout to ensure the textarea is rendered before setting cursor position
@@ -629,6 +643,7 @@ const App: React.FC = () => {
   const handleAutoRefreshToggle = () => {
     setShowPasswordInput(false);
     setShowNoteInput(false);
+    setShowArchiveModal(false); // Close archive modal
     setShowAutoRefreshInput(!showAutoRefreshInput);
   };
 
@@ -650,9 +665,127 @@ const App: React.FC = () => {
     setShowAutoRefreshInput(false);
   };
 
+  // Load archived tabs from storage on component mount
+  useEffect(() => {
+    chrome.storage.local.get(['archivedTabs'], (result) => {
+      if (result.archivedTabs) {
+        setArchivedTabs(result.archivedTabs);
+      }
+    });
+  }, []);
+
+  // Save archived tabs to storage whenever they change
+  useEffect(() => {
+    chrome.storage.local.set({ archivedTabs });
+  }, [archivedTabs]);
+
+  // Track last active time for each tab
+  useEffect(() => {
+    // Initialize tab activity tracking
+    const initTabActivity = async () => {
+      const tabs = await chrome.tabs.query({});
+      const currentTime = Date.now();
+      const tabActivity: Record<string, number> = {};
+      
+      tabs.forEach(tab => {
+        if (tab.id) {
+          tabActivity[tab.id.toString()] = currentTime;
+        }
+      });
+
+      await chrome.storage.local.set({ tabActivity });
+    };
+
+    // Update tab activity when a tab becomes active
+    const handleTabActivated = async (activeInfo: chrome.tabs.TabActiveInfo) => {
+      const currentTime = Date.now();
+      const tabId = activeInfo.tabId.toString();
+      
+      const { tabActivity } = await chrome.storage.local.get(['tabActivity']) as { tabActivity: Record<string, number> };
+      tabActivity[tabId] = currentTime;
+      await chrome.storage.local.set({ tabActivity });
+    };
+
+    // Initialize activity tracking
+    initTabActivity();
+
+    // Add event listener for tab activation
+    chrome.tabs.onActivated.addListener(handleTabActivated);
+
+    // Cleanup
+    return () => {
+      chrome.tabs.onActivated.removeListener(handleTabActivated);
+    };
+  }, []);
+
+  // Function to archive inactive tabs
+  const archiveInactiveTabs = async () => {
+    try {
+      const tabs = await chrome.tabs.query({});
+      const currentTime = Date.now();
+      
+      const tabsToArchive = tabs.filter(tab => {
+        if (!tab.id || !tab.url || tab.url.startsWith('chrome://')) return false;
+        
+        // Check if tab is pinned (important)
+        if (archiveSettings.keepImportant && tab.pinned) return false;
+        
+        // Check if tab is currently active
+        if (tab.active) return false;
+
+        return true;
+      });
+
+      if (tabsToArchive.length === 0) {
+        showError('No inactive tabs found');
+        return;
+      }
+
+      const newArchivedTabs: TabArchive[] = tabsToArchive.map(tab => ({
+        url: tab.url || '',
+        title: tab.title || '',
+        favicon: tab.favIconUrl || '',
+        timestamp: currentTime,
+        group: 'Inactive'
+      }));
+
+      // Update archived tabs
+      setArchivedTabs(prev => [...prev, ...newArchivedTabs]);
+      
+      // Close the archived tabs
+      const tabIds = tabsToArchive.map(tab => tab.id).filter((id): id is number => id !== undefined);
+      await chrome.tabs.remove(tabIds);
+
+      // Show success message
+      showError(`Archived ${tabsToArchive.length} inactive tabs`);
+    } catch (error) {
+      console.error('Error archiving tabs:', error);
+      showError('Error archiving tabs');
+    }
+  };
+
+  // Function to restore archived tab
+  const restoreArchivedTab = async (tab: TabArchive) => {
+    try {
+      // First update storage
+      const updatedTabs = archivedTabs.filter(t => t.url !== tab.url);
+      await chrome.storage.local.set({ archivedTabs: updatedTabs });
+      
+      // Then update state
+      setArchivedTabs(updatedTabs);
+      
+      // Finally create the new tab
+      await chrome.tabs.create({ url: tab.url });
+      showError('Tab restored successfully');
+    } catch (error) {
+      console.error('Error restoring tab:', error);
+      showError('Error restoring tab');
+    }
+  };
+
   return (
     <div 
-      className="w-[380px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
+      className="w-[420px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -906,6 +1039,24 @@ const App: React.FC = () => {
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
           </svg>
         </button>
+
+        {/* Archive Button */}
+        <button
+          onClick={() => {
+            setShowAutoRefreshInput(false);
+            setShowNoteInput(false);
+            setShowArchiveModal(true);
+          }}
+          onMouseEnter={() => setActiveTooltip('archive')}
+          onMouseLeave={() => setActiveTooltip(null)}
+          className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200 flex items-center justify-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 8v13H3V8"></path>
+            <path d="M1 3h22v5H1z"></path>
+            <path d="M10 12h4"></path>
+          </svg>
+        </button>
       </div>
 
       {showPasswordInput && (
@@ -1060,9 +1211,118 @@ const App: React.FC = () => {
            activeTooltip === 'lock' ? (isLocked ? 'Unlock Tab' : 'Lock Tab') :
            activeTooltip === 'pip' ? (isPiPActive ? 'Exit PiP' : 'Enter PiP') :
            activeTooltip === 'shorten' ? (isShortening ? 'Shortening...' : 'Shorten URL') :
-           activeTooltip === 'note' ? 'Quick Note' : ''}
+           activeTooltip === 'note' ? 'Quick Note' :
+           activeTooltip === 'archive' ? 'Archive Tabs' : ''}
         </span>
       </div>
+
+      {/* Archive Modal */}
+      {showArchiveModal && (
+        <div className="w-full p-2">
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={archiveInactiveTabs}
+              className="w-full px-2 py-1 text-sm bg-black text-white rounded hover:bg-white hover:text-black hover:border hover:border-black transition-colors duration-200"
+            >
+              Archive Inactive Tabs
+            </button>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={archiveSettings.keepImportant}
+                onChange={(e) => setArchiveSettings(prev => ({
+                  ...prev,
+                  keepImportant: e.target.checked
+                }))}
+                className="rounded focus:ring-2 focus:ring-black"
+              />
+              <label className="text-sm">Keep important tabs (pinned or active)</label>
+            </div>
+
+            {/* Archived Tabs List */}
+            {archivedTabs.length > 0 && (
+              <div className="mt-2">
+                <div className="flex justify-between items-center mb-1">
+                  <h3 className="text-sm font-medium">Archived Tabs</h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const tabsCount = archivedTabs.length;
+                          // Create all tabs first
+                          const restorePromises = archivedTabs.map(tab => 
+                            chrome.tabs.create({ url: tab.url })
+                          );
+                          await Promise.all(restorePromises);
+                          
+                          // Use the existing Clear All functionality
+                          setArchivedTabs([]);
+                          await chrome.storage.local.set({ archivedTabs: [] });
+                          
+                          showError(`Restored ${tabsCount} tabs`);
+                        } catch (error) {
+                          console.error('Error restoring all tabs:', error);
+                          showError('Error restoring tabs');
+                        }
+                      }}
+                      className="text-xs text-blue-500 hover:text-blue-600 transition-colors"
+                    >
+                      Restore All
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setArchivedTabs([]);
+                        await chrome.storage.local.set({ archivedTabs: [] });
+                      }}
+                      className="text-xs text-red-500 hover:text-red-600 transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1 max-h-24 overflow-y-auto">
+                  {archivedTabs.map((tab, index) => (
+                    <div key={index} className="flex items-center justify-between bg-gray-50 p-1.5 rounded">
+                      <div className="flex items-center space-x-1.5">
+                        <img src={tab.favicon} alt="" className="w-3 h-3" />
+                        <span className="text-xs truncate max-w-[180px]">{tab.title}</span>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => restoreArchivedTab(tab)}
+                          className="text-xs text-blue-500 hover:text-blue-600 transition-colors px-1.5 py-0.5 rounded hover:bg-gray-100"
+                        >
+                          Restore
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const updatedTabs = archivedTabs.filter(t => t.url !== tab.url);
+                            setArchivedTabs(updatedTabs);
+                            await chrome.storage.local.set({ archivedTabs: updatedTabs });
+                          }}
+                          className="text-xs text-red-500 hover:text-red-600 transition-colors px-1.5 py-0.5 rounded hover:bg-gray-100"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowArchiveModal(false)}
+                className="flex-1 px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 transition-colors duration-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
