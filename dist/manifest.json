@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Easy Chrome Advanced",
+  "name": "Easy Chrome",
   "version": "1.0.0",
   "description": "A minimalist Chrome extension for hard refresh with cache clearing",
   "permissions": [
@@ -18,7 +18,7 @@
   ],
   "action": {
     "default_popup": "index.html",
-    "default_title": "Easy Chrome Advanced"
+    "default_title": "Easy Chrome"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

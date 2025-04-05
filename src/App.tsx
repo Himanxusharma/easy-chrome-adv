@@ -34,6 +34,12 @@ const App: React.FC = () => {
   const [archiveSettings, setArchiveSettings] = useState({
     keepImportant: true
   });
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showFeatures, setShowFeatures] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
 
   // Helper function to check if URL is restricted
   const isRestrictedUrl = (url: string | undefined) => {
@@ -234,7 +240,9 @@ const App: React.FC = () => {
     try {
       setShowPasswordInput(false);
       setShowNoteInput(false);
-      setShowAutoRefreshInput(false); // Close auto-refresh input
+      setShowAutoRefreshInput(false);
+      setShowArchiveModal(false);
+      setShowInfoModal(false);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab.id) {
         // Clear cache and cookies for the current domain
@@ -269,7 +277,9 @@ const App: React.FC = () => {
     try {
       setShowPasswordInput(false);
       setShowNoteInput(false);
-      setShowAutoRefreshInput(false); // Close auto-refresh input
+      setShowAutoRefreshInput(false);
+      setShowArchiveModal(false);
+      setShowInfoModal(false);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab.id) {
         await chrome.tabs.update(tab.id, { muted: !isMuted });
@@ -284,7 +294,9 @@ const App: React.FC = () => {
     try {
       setShowPasswordInput(false);
       setShowNoteInput(false);
-      setShowAutoRefreshInput(false); // Close auto-refresh input
+      setShowAutoRefreshInput(false);
+      setShowArchiveModal(false);
+      setShowInfoModal(false);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       setIsCapturing(true);
       if (tab.id) {
@@ -309,7 +321,9 @@ const App: React.FC = () => {
   const handleLockToggle = async () => {
     try {
       setShowNoteInput(false);
-      setShowAutoRefreshInput(false); // Close auto-refresh input
+      setShowAutoRefreshInput(false);
+      setShowArchiveModal(false);
+      setShowInfoModal(false);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (isRestrictedUrl(tab.url)) {
         showError("Can't lock this type of page");
@@ -480,7 +494,9 @@ const App: React.FC = () => {
     try {
       setShowPasswordInput(false);
       setShowNoteInput(false);
-      setShowAutoRefreshInput(false); // Close auto-refresh input
+      setShowAutoRefreshInput(false);
+      setShowArchiveModal(false);
+      setShowInfoModal(false);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (isRestrictedUrl(tab.url)) {
         showError("Can't use Picture-in-Picture on this page");
@@ -563,7 +579,9 @@ const App: React.FC = () => {
     try {
       setShowPasswordInput(false);
       setShowNoteInput(false);
-      setShowAutoRefreshInput(false); // Close auto-refresh input
+      setShowAutoRefreshInput(false);
+      setShowArchiveModal(false);
+      setShowInfoModal(false);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (isRestrictedUrl(tab.url)) {
         showError("Can't shorten this type of URL");
@@ -600,8 +618,9 @@ const App: React.FC = () => {
 
   const handleNoteToggle = () => {
     setShowPasswordInput(false);
-    setShowAutoRefreshInput(false); // Close auto-refresh input
-    setShowArchiveModal(false); // Close archive modal
+    setShowAutoRefreshInput(false);
+    setShowArchiveModal(false);
+    setShowInfoModal(false);
     if (storedNote) {
       setNote(storedNote);
       // Use setTimeout to ensure the textarea is rendered before setting cursor position
@@ -643,7 +662,8 @@ const App: React.FC = () => {
   const handleAutoRefreshToggle = () => {
     setShowPasswordInput(false);
     setShowNoteInput(false);
-    setShowArchiveModal(false); // Close archive modal
+    setShowArchiveModal(false);
+    setShowInfoModal(false);
     setShowAutoRefreshInput(!showAutoRefreshInput);
   };
 
@@ -1041,6 +1061,7 @@ const App: React.FC = () => {
           onClick={() => {
             setShowAutoRefreshInput(false);
             setShowNoteInput(false);
+            setShowInfoModal(false);
             setShowArchiveModal(true);
           }}
           onMouseEnter={() => setActiveTooltip('archive')}
@@ -1051,6 +1072,25 @@ const App: React.FC = () => {
             <path d="M21 8v13H3V8"></path>
             <path d="M1 3h22v5H1z"></path>
             <path d="M10 12h4"></path>
+          </svg>
+        </button>
+
+        {/* Info Button */}
+        <button
+          onClick={() => {
+            setShowAutoRefreshInput(false);
+            setShowNoteInput(false);
+            setShowArchiveModal(false);
+            setShowInfoModal(true);
+          }}
+          onMouseEnter={() => setActiveTooltip('info')}
+          onMouseLeave={() => setActiveTooltip(null)}
+          className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200 flex items-center justify-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
           </svg>
         </button>
       </div>
@@ -1124,7 +1164,12 @@ const App: React.FC = () => {
               </div>
               <div className="flex justify-end mt-1">
                 <button
-                  onClick={handleNoteToggle}
+                  onClick={() => {
+                    setShowAutoRefreshInput(false);
+                    setShowArchiveModal(false);
+                    setShowInfoModal(false);
+                    handleNoteToggle();
+                  }}
                   className="text-xs text-black hover:text-gray-600 transition-colors duration-200"
                 >
                   Edit
@@ -1184,7 +1229,12 @@ const App: React.FC = () => {
                 </button>
               )}
               <button
-                onClick={() => setShowAutoRefreshInput(false)}
+                onClick={() => {
+                  setShowAutoRefreshInput(false);
+                  setShowNoteInput(false);
+                  setShowArchiveModal(false);
+                  setShowInfoModal(false);
+                }}
                 className="px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 transition-colors duration-200"
               >
                 Cancel
@@ -1208,7 +1258,8 @@ const App: React.FC = () => {
            activeTooltip === 'pip' ? (isPiPActive ? 'Exit PiP' : 'Enter PiP') :
            activeTooltip === 'shorten' ? (isShortening ? 'Shortening...' : 'Shorten URL') :
            activeTooltip === 'note' ? 'Quick Note' :
-           activeTooltip === 'archive' ? 'Archive Tabs' : ''}
+           activeTooltip === 'archive' ? 'Archive Tabs' :
+           activeTooltip === 'info' ? 'Info' : ''}
         </span>
       </div>
 
@@ -1315,6 +1366,168 @@ const App: React.FC = () => {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Info Modal */}
+      {showInfoModal && (
+        <div className="w-full p-2">
+          <div className="flex flex-col gap-2">
+            <div className="text-sm text-gray-700">
+              <h3 className="font-medium mb-2">Easy Chrome</h3>
+              <p className="mb-2">A powerful Chrome extension to enhance your browsing experience.</p>
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  onClick={() => setShowFeatures(!showFeatures)}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-all duration-200"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                  </svg>
+                </button>
+                <span className="text-sm">Click to {showFeatures ? 'hide' : 'show'} features</span>
+              </div>
+              
+              {showFeatures && (
+                <div className="grid grid-cols-2 gap-x-4 mb-2">
+                  <ul className="list-disc list-inside">
+                    <li>Hard Refresh</li>
+                    <li>Auto-Refresh</li>
+                    <li>Tab Muting</li>
+                    <li>Screenshot Capture</li>
+                    <li>Tab Locking</li>
+                  </ul>
+                  <ul className="list-disc list-inside">
+                    <li>Picture-in-Picture</li>
+                    <li>URL Shortening</li>
+                    <li>Quick Notes</li>
+                    <li>Tab Archiving</li>
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col items-center gap-1 mb-2">
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setRating(star)}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(0)}
+                    className="p-1 hover:scale-110 transition-transform duration-200"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill={star <= (hoverRating || rating) ? "#fbbf24" : "none"}
+                      stroke={star <= (hoverRating || rating) ? "#fbbf24" : "currentColor"}
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-gray-500">
+                {rating === 0 ? 'Rate your experience' : `You rated ${rating} star${rating > 1 ? 's' : ''}`}
+              </span>
+            </div>
+
+            {!showFeedback ? (
+              <button
+                onClick={() => setShowFeedback(true)}
+                className="w-full px-2 py-1 text-sm bg-black text-white rounded hover:bg-white hover:text-black hover:border hover:border-black transition-colors duration-200"
+              >
+                Send Feedback
+              </button>
+            ) : (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  // Send feedback to API
+                  const response = await fetch('https://api.ootmlab.com/feedback', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      rating,
+                      feedback,
+                      extension: 'Easy Chrome',
+                      version: '1.0.0',
+                      timestamp: new Date().toISOString()
+                    })
+                  });
+
+                  if (!response.ok) {
+                    throw new Error('Failed to send feedback');
+                  }
+
+                  setFeedback('');
+                  setRating(0);
+                  setShowFeedback(false);
+                  showError('Thank you for your feedback!');
+                } catch (error) {
+                  console.error('Error sending feedback:', error);
+                  showError('Failed to send feedback. Please try again.');
+                }
+              }} className="flex flex-col gap-2">
+                <textarea
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  placeholder="Share your thoughts, suggestions, or report issues..."
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded resize-none focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-sm hover:shadow-md transition-all duration-200"
+                  rows={3}
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="flex-1 px-2 py-1 text-sm bg-black text-white rounded hover:bg-white hover:text-black hover:border hover:border-black transition-colors duration-200"
+                  >
+                    Submit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowFeedback(false)}
+                    className="px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => window.open('https://buymeacoffee.com/ootmlab', '_blank')}
+                className="w-full px-2 py-1 text-sm bg-pink-50 text-pink-600 rounded hover:bg-pink-100 transition-colors duration-200 flex items-center justify-center gap-1"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+                Support Us
+              </button>
+              <p className="text-center text-gray-500 italic text-sm">
+                Made with ❤️ by{' '}
+                <a 
+                  href="https://min-ootm.vercel.app/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:text-blue-600 hover:underline transition-colors duration-200"
+                >
+                  OOTM Lab
+                </a>
+              </p>
             </div>
           </div>
         </div>
