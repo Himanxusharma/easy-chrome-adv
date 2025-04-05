@@ -19,6 +19,15 @@ A powerful Chrome extension that supercharges your browsing experience with esse
 - Tab-specific refresh intervals
 - Customizable timing (5-3600 seconds)
 - Multiple tabs refresh independently
+- Visual status indicator
+- Persistent settings per tab
+
+### 📚 Daily URLs
+- Save frequently visited URLs
+- Automatic title generation from domain names
+- Quick access to your daily sites
+- Open all URLs with one click
+- Edit and manage your URL list
 
 ### 🔇 Smart Mute
 - Quick tab muting/unmuting
@@ -50,6 +59,13 @@ A powerful Chrome extension that supercharges your browsing experience with esse
 - Easy editing
 - Clean interface
 
+### 📦 Smart Tab Archive
+- Archive inactive tabs
+- Restore archived tabs
+- Keep important tabs (pinned/active)
+- Restore all tabs at once
+- Clear archived tabs
+
 ## 🎨 UI/UX Highlights
 
 - **Minimalist Design**: Clean, modern interface with a black color scheme
@@ -58,6 +74,7 @@ A powerful Chrome extension that supercharges your browsing experience with esse
 - **Responsive Layout**: Adapts to content dynamically
 - **Error Handling**: User-friendly error messages for restricted pages
 - **Tab-Specific Features**: Features like auto-refresh work independently on different tabs
+- **Modal Management**: Clean modal system with proper state handling
 
 ## 🛠️ Installation
 
@@ -87,10 +104,18 @@ npm run watch
 - Click the clock icon to set up auto-refresh intervals
 - Each tab can have its own refresh schedule
 
+### Daily URLs
+- Click the house icon to manage your daily URLs
+- Add URLs with optional custom titles
+- Open all saved URLs at once
+- Edit or delete URLs as needed
+
 ### Tab Management
 - Use the mute button to toggle audio
 - Click the lock icon to password-protect sensitive tabs
 - Enable Picture-in-Picture mode for videos with a single click
+- Archive inactive tabs to free up memory
+- Restore archived tabs when needed
 
 ### Productivity Tools
 - Quickly shorten and copy URLs with the link icon
@@ -103,6 +128,8 @@ npm run watch
 - **Auto-Refresh**: Keep the popup open in a separate window for continuous refreshing
 - **Multiple Tabs**: Set different refresh intervals for different tabs
 - **Quick Notes**: Notes persist across browser sessions
+- **Daily URLs**: Leave the title field empty to automatically use the domain name
+- **Tab Archive**: Use the "Keep important tabs" option to preserve pinned tabs
 
 ## 🤝 Contributing
 
@@ -122,6 +149,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-  <p>Made with ❤️ by Your Name</p>
+  <p>Made with ❤️ by OOTM Lab</p>
   <p>⭐ Star this repository if you find it useful!</p>
 </div>
