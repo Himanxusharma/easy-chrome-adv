@@ -1020,12 +1020,9 @@ const App: React.FC = () => {
             strokeLinejoin="round"
             className={isShortening ? 'animate-spin' : ''}
           >
-            <path d="M13.5 10.5L21 3"></path>
-            <path d="M21 3h-7"></path>
-            <path d="M21 3v7"></path>
-            <path d="M10.5 13.5L3 21"></path>
-            <path d="M3 21h7"></path>
-            <path d="M3 21v-7"></path>
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            <path d="M8 12h8"></path>
           </svg>
           {showCopied && (
             <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded">
