@@ -40,6 +40,11 @@ const App: React.FC = () => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
+  const [showDailyUrlsModal, setShowDailyUrlsModal] = useState(false);
+  const [dailyUrls, setDailyUrls] = useState<Array<{url: string, title: string}>>([]);
+  const [editingUrl, setEditingUrl] = useState<{url: string, title: string} | null>(null);
+  const [newUrl, setNewUrl] = useState('');
+  const [newTitle, setNewTitle] = useState('');
 
   // Helper function to check if URL is restricted
   const isRestrictedUrl = (url: string | undefined) => {
@@ -243,6 +248,7 @@ const App: React.FC = () => {
       setShowAutoRefreshInput(false);
       setShowArchiveModal(false);
       setShowInfoModal(false);
+      setShowDailyUrlsModal(false);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab.id) {
         // Clear cache and cookies for the current domain
@@ -280,6 +286,7 @@ const App: React.FC = () => {
       setShowAutoRefreshInput(false);
       setShowArchiveModal(false);
       setShowInfoModal(false);
+      setShowDailyUrlsModal(false);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab.id) {
         await chrome.tabs.update(tab.id, { muted: !isMuted });
@@ -297,6 +304,7 @@ const App: React.FC = () => {
       setShowAutoRefreshInput(false);
       setShowArchiveModal(false);
       setShowInfoModal(false);
+      setShowDailyUrlsModal(false);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       setIsCapturing(true);
       if (tab.id) {
@@ -324,6 +332,7 @@ const App: React.FC = () => {
       setShowAutoRefreshInput(false);
       setShowArchiveModal(false);
       setShowInfoModal(false);
+      setShowDailyUrlsModal(false);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (isRestrictedUrl(tab.url)) {
         showError("Can't lock this type of page");
@@ -497,6 +506,7 @@ const App: React.FC = () => {
       setShowAutoRefreshInput(false);
       setShowArchiveModal(false);
       setShowInfoModal(false);
+      setShowDailyUrlsModal(false);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (isRestrictedUrl(tab.url)) {
         showError("Can't use Picture-in-Picture on this page");
@@ -582,6 +592,7 @@ const App: React.FC = () => {
       setShowAutoRefreshInput(false);
       setShowArchiveModal(false);
       setShowInfoModal(false);
+      setShowDailyUrlsModal(false);
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (isRestrictedUrl(tab.url)) {
         showError("Can't shorten this type of URL");
@@ -621,6 +632,7 @@ const App: React.FC = () => {
     setShowAutoRefreshInput(false);
     setShowArchiveModal(false);
     setShowInfoModal(false);
+    setShowDailyUrlsModal(false);
     if (storedNote) {
       setNote(storedNote);
       // Use setTimeout to ensure the textarea is rendered before setting cursor position
@@ -664,6 +676,7 @@ const App: React.FC = () => {
     setShowNoteInput(false);
     setShowArchiveModal(false);
     setShowInfoModal(false);
+    setShowDailyUrlsModal(false);
     setShowAutoRefreshInput(!showAutoRefreshInput);
   };
 
@@ -803,9 +816,93 @@ const App: React.FC = () => {
     }
   };
 
+  // Load daily URLs from storage on component mount
+  useEffect(() => {
+    chrome.storage.local.get(['dailyUrls'], (result) => {
+      if (result.dailyUrls) {
+        setDailyUrls(result.dailyUrls);
+      }
+    });
+  }, []);
+
+  // Save daily URLs to storage whenever they change
+  useEffect(() => {
+    chrome.storage.local.set({ dailyUrls });
+  }, [dailyUrls]);
+
+  const handleAddUrl = () => {
+    if (newUrl.trim()) {
+      let title = newTitle.trim();
+      if (!title) {
+        try {
+          // Extract domain name from URL and remove extension and www.
+          const urlObj = new URL(newUrl.trim());
+          title = urlObj.hostname.replace(/\.[^.]+$/, '').replace(/^www\./, ''); // Remove the last dot and everything after it, and remove www.
+        } catch (e) {
+          // If URL parsing fails, use the URL itself
+          title = newUrl.trim();
+        }
+      }
+      setDailyUrls([...dailyUrls, { url: newUrl.trim(), title }]);
+      setNewUrl('');
+      setNewTitle('');
+    }
+  };
+
+  const handleEditUrl = (index: number) => {
+    setEditingUrl(dailyUrls[index]);
+    setNewUrl(dailyUrls[index].url);
+    setNewTitle(dailyUrls[index].title);
+  };
+
+  const handleUpdateUrl = () => {
+    if (editingUrl && newUrl.trim()) {
+      let title = newTitle.trim();
+      if (!title) {
+        try {
+          // Extract domain name from URL and remove extension and www.
+          const urlObj = new URL(newUrl.trim());
+          title = urlObj.hostname.replace(/\.[^.]+$/, '').replace(/^www\./, ''); // Remove the last dot and everything after it, and remove www.
+        } catch (e) {
+          // If URL parsing fails, use the URL itself
+          title = newUrl.trim();
+        }
+      }
+      const updatedUrls = dailyUrls.map((url) => 
+        url === editingUrl ? { url: newUrl.trim(), title } : url
+      );
+      setDailyUrls(updatedUrls);
+      setEditingUrl(null);
+      setNewUrl('');
+      setNewTitle('');
+    }
+  };
+
+  const handleDeleteUrl = (index: number) => {
+    const updatedUrls = dailyUrls.filter((_, i) => i !== index);
+    setDailyUrls(updatedUrls);
+  };
+
+  const handleOpenAllUrls = async () => {
+    try {
+      for (const urlObj of dailyUrls) {
+        let url = urlObj.url;
+        // Add https:// if no protocol is specified
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          url = 'https://' + url;
+        }
+        await chrome.tabs.create({ url: url, active: false });
+      }
+      showError(`Opened ${dailyUrls.length} URLs`);
+    } catch (error) {
+      console.error('Error opening URLs:', error);
+      showError('Failed to open some URLs');
+    }
+  };
+
   return (
     <div 
-      className="w-[460px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
+      className="w-[500px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -874,6 +971,28 @@ const App: React.FC = () => {
           >
             <circle cx="12" cy="12" r="10"></circle>
             <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </button>
+
+        {/* Daily URLs Button */}
+        <button
+          onClick={() => {
+            setShowAutoRefreshInput(false);
+            setShowNoteInput(false);
+            setShowArchiveModal(false);
+            setShowInfoModal(false);
+            setShowDailyUrlsModal(!showDailyUrlsModal);
+          }}
+          onDoubleClick={() => {
+            setShowDailyUrlsModal(false);
+          }}
+          onMouseEnter={() => setActiveTooltip('dailyUrls')}
+          onMouseLeave={() => setActiveTooltip(null)}
+          className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200 flex items-center justify-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
           </svg>
         </button>
 
@@ -1059,7 +1178,11 @@ const App: React.FC = () => {
             setShowAutoRefreshInput(false);
             setShowNoteInput(false);
             setShowInfoModal(false);
-            setShowArchiveModal(true);
+            setShowDailyUrlsModal(false);
+            setShowArchiveModal(!showArchiveModal);
+          }}
+          onDoubleClick={() => {
+            setShowArchiveModal(false);
           }}
           onMouseEnter={() => setActiveTooltip('archive')}
           onMouseLeave={() => setActiveTooltip(null)}
@@ -1078,7 +1201,11 @@ const App: React.FC = () => {
             setShowAutoRefreshInput(false);
             setShowNoteInput(false);
             setShowArchiveModal(false);
-            setShowInfoModal(true);
+            setShowDailyUrlsModal(false);
+            setShowInfoModal(!showInfoModal);
+          }}
+          onDoubleClick={() => {
+            setShowInfoModal(false);
           }}
           onMouseEnter={() => setActiveTooltip('info')}
           onMouseLeave={() => setActiveTooltip(null)}
@@ -1249,6 +1376,7 @@ const App: React.FC = () => {
         >
           {activeTooltip === 'refresh' ? 'Hard Refresh' : 
            activeTooltip === 'autoRefresh' ? (autoRefreshActive ? `Auto-Refresh (${autoRefreshInterval}s)` : 'Auto-Refresh') :
+           activeTooltip === 'dailyUrls' ? 'Daily URLs' :
            activeTooltip === 'mute' ? (isMuted ? 'Unmute Tab' : 'Mute Tab') :
            activeTooltip === 'screenshot' ? (isCapturing ? 'Capturing...' : 'Take Screenshot') :
            activeTooltip === 'lock' ? (isLocked ? 'Unlock Tab' : 'Lock Tab') :
@@ -1393,15 +1521,16 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-2 gap-x-4 mb-2">
                   <ul className="list-disc list-inside">
                     <li>Hard Refresh</li>
-                    <li>Auto-Refresh</li>
-                    <li>Tab Muting</li>
+                    <li>Daily URLs</li>
                     <li>Screenshot Capture</li>
-                    <li>Tab Locking</li>
+                    <li>Picture-in-Picture</li>
+                    <li>Quick Notes</li>
                   </ul>
                   <ul className="list-disc list-inside">
-                    <li>Picture-in-Picture</li>
+                    <li>Auto-Refresh</li>
+                    <li>Tab Muting</li>
+                    <li>Tab Locking</li>
                     <li>URL Shortening</li>
-                    <li>Quick Notes</li>
                     <li>Tab Archiving</li>
                   </ul>
                 </div>
@@ -1525,6 +1654,77 @@ const App: React.FC = () => {
                   OOTM Lab
                 </a>
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Daily URLs Modal */}
+      {showDailyUrlsModal && (
+        <div className="w-full p-2">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newUrl}
+                onChange={(e) => setNewUrl(e.target.value)}
+                placeholder="Enter URL"
+                className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-sm transition-all duration-200"
+              />
+              <input
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Title (optional)"
+                className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:border-black focus:ring-1 focus:ring-black shadow-sm transition-all duration-200"
+              />
+              <button
+                onClick={editingUrl ? handleUpdateUrl : handleAddUrl}
+                className="px-2 py-1 text-sm bg-black text-white rounded hover:bg-white hover:text-black hover:border hover:border-black transition-colors duration-200"
+              >
+                {editingUrl ? 'Update' : 'Add'}
+              </button>
+            </div>
+
+            {dailyUrls.length > 0 && (
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {dailyUrls.map((url, index) => (
+                  <div key={index} className="flex items-center justify-between bg-gray-50 p-1.5 rounded">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="text-xs truncate max-w-[180px]">{url.title}</span>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleEditUrl(index)}
+                        className="text-xs text-blue-500 hover:text-blue-600 transition-colors px-1.5 py-0.5 rounded hover:bg-gray-100"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUrl(index)}
+                        className="text-xs text-red-500 hover:text-red-600 transition-colors px-1.5 py-0.5 rounded hover:bg-gray-100"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleOpenAllUrls}
+                className="flex-1 px-2 py-1 text-sm bg-black text-white rounded hover:bg-white hover:text-black hover:border hover:border-black transition-colors duration-200"
+              >
+                Open All URLs
+              </button>
+              <button
+                onClick={() => setShowDailyUrlsModal(false)}
+                className="px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 transition-colors duration-200"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
