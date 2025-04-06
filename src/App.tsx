@@ -1364,11 +1364,11 @@ const App: React.FC = () => {
               </div>
             </form>
           ) : (
-            <div>
-              <div className="text-sm text-gray-700 whitespace-pre-wrap break-words">
-                {storedNote}
-              </div>
-              <div className="flex justify-end mt-1">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="text-sm text-gray-700 whitespace-pre-wrap break-words flex-1 min-w-0">
+                  {storedNote}
+                </div>
                 <button
                   onClick={() => {
                     setShowAutoRefreshInput(false);
@@ -1376,7 +1376,7 @@ const App: React.FC = () => {
                     setShowInfoModal(false);
                     handleNoteToggle();
                   }}
-                  className="text-xs text-black hover:text-gray-600 transition-colors duration-200"
+                  className="text-xs text-black hover:text-gray-600 transition-colors duration-200 px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 shrink-0"
                 >
                   Edit
                 </button>
