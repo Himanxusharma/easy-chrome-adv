@@ -33,7 +33,7 @@
     }
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://tinyurl.com/* https://eox4c4cn3qihdvl.m.pipedream.net"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://tinyurl.com/* https://eox4c4cn3qihdvl.m.pipedream.net https://*.supabase.co https://*.supabase.in"
   },
   "web_accessible_resources": [{
     "resources": ["index.html"],

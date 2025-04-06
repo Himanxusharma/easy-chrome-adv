@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
 interface TabArchive {
   url: string;
@@ -7,6 +8,23 @@ interface TabArchive {
   timestamp: number;
   group?: string;
 }
+
+// Initialize Supabase client
+const supabaseUrl = 'https://hjtzgtgzzfisorhzkrnf.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqdHpndGd6emZpc29yaHprcm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NjgzODUsImV4cCI6MjA1OTU0NDM4NX0.JJhk_VgBuXhfiCVw5ThPf9P12BS3DNEXrJTkXR75flA';
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  },
+  global: {
+    headers: {
+      'apikey': supabaseKey,
+      'Authorization': `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json'
+    }
+  }
+});
 
 const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
@@ -38,13 +56,17 @@ const App: React.FC = () => {
   const [showFeatures, setShowFeatures] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
-  const [rating, setRating] = useState(0);
+  const [rating, setRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [showDailyUrlsModal, setShowDailyUrlsModal] = useState(false);
   const [dailyUrls, setDailyUrls] = useState<Array<{url: string, title: string}>>([]);
   const [editingUrl, setEditingUrl] = useState<{url: string, title: string} | null>(null);
   const [newUrl, setNewUrl] = useState('');
   const [newTitle, setNewTitle] = useState('');
+  const [activeTab, setActiveTab] = useState<string>('tabs');
+  const [tabs, setTabs] = useState<chrome.tabs.Tab[]>([]);
+  const [selectedTabs, setSelectedTabs] = useState<number[]>([]);
+  const [error, setError] = useState('');
 
   // Helper function to check if URL is restricted
   const isRestrictedUrl = (url: string | undefined) => {
@@ -919,6 +941,47 @@ const App: React.FC = () => {
     }
   };
 
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedback.trim()) {
+      showError('Please enter your feedback');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('ootm_lab_feedback')
+        .insert([
+          {
+            rating,
+            feedback: feedback.trim(),
+            extension: 'Easy Chrome',
+            version: '1.0.0',
+            created_at: new Date().toISOString()
+          }
+        ]);
+
+      if (error) {
+        console.error('Supabase error:', error);
+        showError('Error sending feedback: ' + error.message);
+        return;
+      }
+
+      // Show success message
+      showError('Thank you for your feedback!');
+      setFeedback('');
+      setRating(5);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        showError('');
+      }, 3000);
+    } catch (err) {
+      console.error('Error:', err);
+      showError('Error sending feedback: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+  };
+
   return (
     <div 
       className="w-[500px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
@@ -1403,6 +1466,7 @@ const App: React.FC = () => {
            activeTooltip === 'shorten' ? (isShortening ? 'Shortening...' : 'Shorten URL') :
            activeTooltip === 'note' ? 'Quick Note' :
            activeTooltip === 'archive' ? 'Archive Tabs' :
+           activeTooltip === 'dailyUrls' ? 'Daily URLs' :
            activeTooltip === 'info' ? 'Info' : ''}
         </span>
       </div>
@@ -1595,37 +1659,7 @@ const App: React.FC = () => {
                 Send Feedback
               </button>
             ) : (
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                try {
-                  // Send feedback to API
-                  const response = await fetch('https://eox4c4cn3qihdvl.m.pipedream.net', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      rating,
-                      feedback,
-                      extension: 'Easy Chrome',
-                      version: '1.0.0',
-                      timestamp: new Date().toISOString()
-                    })
-                  });
-
-                  if (!response.ok) {
-                    throw new Error('Failed to send feedback');
-                  }
-
-                  setFeedback('');
-                  setRating(0);
-                  setShowFeedback(false);
-                  showError('Thank you for your feedback!');
-                } catch (error) {
-                  console.error('Error sending feedback:', error);
-                  showError('Failed to send feedback. Please try again.');
-                }
-              }} className="flex flex-col gap-2">
+              <form onSubmit={handleFeedbackSubmit} className="flex flex-col gap-2">
                 <textarea
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
