@@ -900,6 +900,25 @@ const App: React.FC = () => {
     }
   };
 
+  const handleClearAllData = async () => {
+    if (confirm('Are you sure you want to clear all extension data? This cannot be undone.')) {
+      try {
+        await chrome.storage.local.clear();
+        // Reset all states
+        setStoredPassword(null);
+        setStoredNote(null);
+        setAutoRefreshActive(false);
+        setAutoRefreshInterval(30);
+        setArchivedTabs([]);
+        setDailyUrls([]);
+        // Show success message
+        showError('All data cleared successfully');
+      } catch (error) {
+        showError('Failed to clear data');
+      }
+    }
+  };
+
   return (
     <div 
       className="w-[500px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
@@ -1643,6 +1662,19 @@ const App: React.FC = () => {
                 </svg>
                 You can donate to support us
               </button>
+
+              <button
+                onClick={handleClearAllData}
+                className="w-full px-2 py-1 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors duration-200 flex items-center justify-center gap-1"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6h18"></path>
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                </svg>
+                Clear All Data
+              </button>
+
               <p className="text-center text-gray-500 italic text-sm">
                 Made with ❤️ by{' '}
                 <a 
@@ -1727,6 +1759,23 @@ const App: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Tooltips */}
+      {activeTooltip && (
+        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+          {activeTooltip === 'refresh' && 'Hard Refresh'}
+          {activeTooltip === 'autoRefresh' && 'Auto Refresh'}
+          {activeTooltip === 'mute' && (isMuted ? 'Unmute Tab' : 'Mute Tab')}
+          {activeTooltip === 'screenshot' && 'Take Screenshot'}
+          {activeTooltip === 'lock' && (isLocked ? 'Unlock Tab' : 'Lock Tab')}
+          {activeTooltip === 'pip' && (isPiPActive ? 'Exit PiP' : 'Enter PiP')}
+          {activeTooltip === 'shorten' && 'Shorten URL'}
+          {activeTooltip === 'note' && 'Quick Note'}
+          {activeTooltip === 'archive' && 'Archive Tabs'}
+          {activeTooltip === 'dailyUrls' && 'Daily URLs'}
+          {activeTooltip === 'info' && 'Info'}
         </div>
       )}
     </div>
