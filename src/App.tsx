@@ -1653,27 +1653,41 @@ const App: React.FC = () => {
             )}
 
             <div className="flex flex-col gap-2">
-              <button
-                onClick={() => window.open('https://buymeacoffee.com/ootmlab', '_blank')}
-                className="w-full px-2 py-1 text-sm bg-pink-50 text-pink-600 rounded hover:bg-pink-100 transition-colors duration-200 flex items-center justify-center gap-1"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                </svg>
-                You can donate to support us
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => window.open('https://min-ootm.vercel.app/experiments/orbslf', '_blank')}
+                  className="flex-1 px-2 py-1 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors duration-200 flex items-center justify-center gap-1"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                  How to Use
+                </button>
 
-              <button
-                onClick={handleClearAllData}
-                className="w-full px-2 py-1 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors duration-200 flex items-center justify-center gap-1"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18"></path>
-                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                </svg>
-                Clear All Data
-              </button>
+                <button
+                  onClick={() => window.open('https://buymeacoffee.com/ootmlab', '_blank')}
+                  className="flex-1 px-2 py-1 text-sm bg-pink-50 text-pink-600 rounded hover:bg-pink-100 transition-colors duration-200 flex items-center justify-center gap-1"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                  </svg>
+                  Donate
+                </button>
+
+                <button
+                  onClick={handleClearAllData}
+                  className="flex-1 px-2 py-1 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors duration-200 flex items-center justify-center gap-1"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18"></path>
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                  </svg>
+                  Clear Data
+                </button>
+              </div>
 
               <p className="text-center text-gray-500 italic text-sm">
                 Made with ❤️ by{' '}
