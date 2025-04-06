@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background square with rounded corners -->
+  <rect x="4" y="4" width="120" height="120" rx="12" fill="black" stroke="white" stroke-width="4"/>
+  
+  <!-- Main design -->
+  <g transform="translate(64, 64)">
+    <!-- Double arrow design -->
+    <path d="M-35 0 L-15 0 L-25 -10" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M-35 0 L-15 0 L-25 10" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M35 0 L15 0 L25 -10" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M35 0 L15 0 L25 10" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Connecting line -->
+    <path d="M-15 0 L15 0" stroke="white" stroke-width="6" fill="none" stroke-linecap="round"/>
+    
+    <!-- Circular motion indicators -->
+    <circle cx="-25" cy="0" r="4" fill="white"/>
+    <circle cx="25" cy="0" r="4" fill="white"/>
+  </g>
+</svg> 
