@@ -1580,7 +1580,7 @@ const App: React.FC = () => {
                 e.preventDefault();
                 try {
                   // Send feedback to API
-                  const response = await fetch('https://api.ootmlab.com/feedback', {
+                  const response = await fetch('https://eox4c4cn3qihdvl.m.pipedream.net', {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',
@@ -1641,7 +1641,7 @@ const App: React.FC = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                 </svg>
-                Support Us
+                You can donate to support us
               </button>
               <p className="text-center text-gray-500 italic text-sm">
                 Made with ❤️ by{' '}
