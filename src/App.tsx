@@ -49,13 +49,93 @@ const App: React.FC = () => {
   // Helper function to check if URL is restricted
   const isRestrictedUrl = (url: string | undefined) => {
     if (!url) return true;
-    return url.startsWith('chrome://') || url.startsWith('chrome-extension://');
+    return url.startsWith('chrome://') || 
+           url.startsWith('chrome-extension://') ||
+           url.startsWith('file://') ||
+           url.startsWith('about:') ||
+           url.startsWith('data:');
+  };
+
+  // Helper function to sanitize URL
+  const sanitizeUrl = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      // Only allow http and https protocols
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
+        throw new Error('Invalid protocol');
+      }
+      return urlObj.toString();
+    } catch (e) {
+      return '';
+    }
+  };
+
+  // Helper function to sanitize HTML
+  const sanitizeHtml = (html: string): string => {
+    const div = document.createElement('div');
+    div.textContent = html;
+    return div.innerHTML;
   };
 
   // Helper function to show error message
   const showError = (message: string) => {
-    setErrorMessage(message);
+    setErrorMessage(sanitizeHtml(message));
     setTimeout(() => setErrorMessage(null), 3000);
+  };
+
+  // Secure password storage
+  const hashPassword = async (password: string): Promise<string> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hash))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  };
+
+  // Secure password verification
+  const verifyPassword = async (password: string, storedHash: string): Promise<boolean> => {
+    const hash = await hashPassword(password);
+    return hash === storedHash;
+  };
+
+  // Secure feedback submission
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const sanitizedFeedback = sanitizeHtml(feedback);
+      if (!sanitizedFeedback.trim()) {
+        showError("Please enter feedback");
+        return;
+      }
+
+      // Send feedback to API
+      const response = await fetch('https://eox4c4cn3qihdvl.m.pipedream.net', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rating,
+          feedback: sanitizedFeedback,
+          extension: 'Easy Chrome',
+          version: '1.0.0',
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send feedback');
+      }
+
+      setFeedback('');
+      setRating(0);
+      setShowFeedback(false);
+      showError('Thank you for your feedback!');
+    } catch (error) {
+      console.error('Error sending feedback:', error);
+      showError('Failed to send feedback. Please try again.');
+    }
   };
 
   useEffect(() => {
@@ -354,24 +434,27 @@ const App: React.FC = () => {
     
     if (!storedPassword) {
       // Set new password
-      await chrome.storage.local.set({ lockPassword: password });
-      setStoredPassword(password);
+      const hashedPassword = await hashPassword(password);
+      await chrome.storage.local.set({ lockPassword: hashedPassword });
+      setStoredPassword(hashedPassword);
       setPassword('');
       setShowPasswordInput(false);
       await lockTab();
-    } else if (password === storedPassword) {
-      // Correct password entered
-      setPassword('');
-      setShowPasswordInput(false);
-      if (isLocked) {
-        await unlockTab();
-      } else {
-        await lockTab();
-      }
     } else {
-      // Incorrect password
-      alert('Incorrect password');
-      setPassword('');
+      // Verify password
+      const isValid = await verifyPassword(password, storedPassword);
+      if (isValid) {
+        setPassword('');
+        setShowPasswordInput(false);
+        if (isLocked) {
+          await unlockTab();
+        } else {
+          await lockTab();
+        }
+      } else {
+        showError('Incorrect password');
+        setPassword('');
+      }
     }
   };
 
@@ -605,8 +688,14 @@ const App: React.FC = () => {
         return;
       }
 
+      const sanitizedUrl = sanitizeUrl(tab.url);
+      if (!sanitizedUrl) {
+        showError("Invalid URL");
+        return;
+      }
+
       // Use TinyURL API to shorten the URL
-      const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(tab.url)}`);
+      const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(sanitizedUrl)}`);
       if (!response.ok) {
         showError("Failed to shorten URL");
         return;
@@ -903,7 +992,18 @@ const App: React.FC = () => {
   const handleClearAllData = async () => {
     if (confirm('Are you sure you want to clear all extension data? This cannot be undone.')) {
       try {
+        // Clear storage
         await chrome.storage.local.clear();
+        
+        // Clear cookies for the extension
+        await chrome.browsingData.remove({
+          origins: [chrome.runtime.getURL('')]
+        }, {
+          cookies: true,
+          localStorage: true,
+          cache: true
+        });
+        
         // Reset all states
         setStoredPassword(null);
         setStoredNote(null);
@@ -911,6 +1011,7 @@ const App: React.FC = () => {
         setAutoRefreshInterval(30);
         setArchivedTabs([]);
         setDailyUrls([]);
+        
         // Show success message
         showError('All data cleared successfully');
       } catch (error) {
@@ -1595,37 +1696,7 @@ const App: React.FC = () => {
                 Send Feedback
               </button>
             ) : (
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                try {
-                  // Send feedback to API
-                  const response = await fetch('https://eox4c4cn3qihdvl.m.pipedream.net', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      rating,
-                      feedback,
-                      extension: 'Easy Chrome',
-                      version: '1.0.0',
-                      timestamp: new Date().toISOString()
-                    })
-                  });
-
-                  if (!response.ok) {
-                    throw new Error('Failed to send feedback');
-                  }
-
-                  setFeedback('');
-                  setRating(0);
-                  setShowFeedback(false);
-                  showError('Thank you for your feedback!');
-                } catch (error) {
-                  console.error('Error sending feedback:', error);
-                  showError('Failed to send feedback. Please try again.');
-                }
-              }} className="flex flex-col gap-2">
+              <form onSubmit={handleFeedbackSubmit} className="flex flex-col gap-2">
                 <textarea
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}

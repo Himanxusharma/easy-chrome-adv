@@ -21,6 +21,10 @@
     "default_title": "Easy Chrome"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
-  }
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://tinyurl.com/* https://eox4c4cn3qihdvl.m.pipedream.net"
+  },
+  "web_accessible_resources": [{
+    "resources": ["index.html"],
+    "matches": ["<all_urls>"]
+  }]
 } 
