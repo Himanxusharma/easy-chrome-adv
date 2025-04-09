@@ -1633,6 +1633,39 @@ const App: React.FC = () => {
       {showDailyUrlsModal && (
         <div className="w-full p-2">
           <div className="flex flex-col gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                  if (tab.url && !tab.url.startsWith('chrome://')) {
+                    let title = tab.title || '';
+                    if (!title) {
+                      try {
+                        // Extract domain name from URL and remove extension and www.
+                        const urlObj = new URL(tab.url);
+                        title = urlObj.hostname.replace(/\.[^.]+$/, '').replace(/^www\./, ''); // Remove the last dot and everything after it, and remove www.
+                      } catch (e) {
+                        // If URL parsing fails, use the URL itself
+                        title = tab.url;
+                      }
+                    }
+                    setDailyUrls([...dailyUrls, { url: tab.url, title }]);
+                    chrome.storage.local.set({ dailyUrls: [...dailyUrls, { url: tab.url, title }] });
+                  } else {
+                    showError("Can't add this type of URL");
+                  }
+                } catch (error) {
+                  showError("Failed to get current tab URL");
+                }
+              }}
+              className="w-full px-2 py-1 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors duration-200 flex items-center justify-center gap-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+              Add Current Tab URL
+            </button>
+
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -1661,20 +1694,36 @@ const App: React.FC = () => {
                 {dailyUrls.map((url, index) => (
                   <div key={index} className="flex items-center justify-between bg-gray-50 p-1.5 rounded">
                     <div className="flex items-center space-x-1.5">
-                      <span className="text-xs truncate max-w-[180px]">{url.title}</span>
+                      <span className="text-xs truncate max-w-[180px]">{url.title || url.url}</span>
                     </div>
                     <div className="flex gap-1">
                       <button
-                        onClick={() => handleEditUrl(index)}
+                        onClick={() => {
+                          setEditingUrl(url);
+                          setNewUrl(url.url);
+                          setNewTitle(url.title);
+                        }}
                         className="text-xs text-blue-500 hover:text-blue-600 transition-colors px-1.5 py-0.5 rounded hover:bg-gray-100"
                       >
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDeleteUrl(index)}
+                        onClick={() => {
+                          const updatedUrls = dailyUrls.filter((_, i) => i !== index);
+                          setDailyUrls(updatedUrls);
+                          chrome.storage.local.set({ dailyUrls: updatedUrls });
+                        }}
                         className="text-xs text-red-500 hover:text-red-600 transition-colors px-1.5 py-0.5 rounded hover:bg-gray-100"
                       >
                         Delete
+                      </button>
+                      <button
+                        onClick={() => {
+                          chrome.tabs.create({ url: url.url });
+                        }}
+                        className="text-xs text-green-500 hover:text-green-600 transition-colors px-1.5 py-0.5 rounded hover:bg-gray-100"
+                      >
+                        Open
                       </button>
                     </div>
                   </div>
