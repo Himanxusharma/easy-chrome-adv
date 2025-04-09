@@ -12,12 +12,9 @@
   "permissions": [
     "activeTab",
     "browsingData",
-    "cookies",
     "storage",
-    "tabCapture",
     "scripting"
   ],
-  "host_permissions": [],
   "action": {
     "default_popup": "index.html",
     "default_title": "Easy Chrome",
