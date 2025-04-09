@@ -940,7 +940,7 @@ const App: React.FC = () => {
 
   return (
     <div 
-      className="w-[500px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
+      className="w-[460px] min-h-[10px] bg-white flex flex-col items-center gap-1 pt-1 transition-all duration-300"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
