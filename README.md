@@ -49,11 +49,6 @@ A powerful Chrome extension that supercharges your browsing experience with esse
 - Works with YouTube, Instagram, and more
 - One-click PiP mode
 
-### 🔗 URL Shortener
-- Instant URL shortening via TinyURL
-- Automatic clipboard copy
-- Success notification
-
 ### 📝 Quick Notes
 - Persistent note storage
 - Easy editing
@@ -118,7 +113,6 @@ npm run watch
 - Restore archived tabs when needed
 
 ### Productivity Tools
-- Quickly shorten and copy URLs with the link icon
 - Save persistent notes with the pencil icon
 - Access your notes across browser sessions
 

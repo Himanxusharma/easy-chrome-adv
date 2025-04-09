@@ -36,8 +36,6 @@ const App: React.FC = () => {
   const [password, setPassword] = useState('');
   const [storedPassword, setStoredPassword] = useState<string | null>(null);
   const [isPiPActive, setIsPiPActive] = useState(false);
-  const [isShortening, setIsShortening] = useState(false);
-  const [showCopied, setShowCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [note, setNote] = useState('');
@@ -607,48 +605,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleShortenUrl = async () => {
-    try {
-      setShowPasswordInput(false);
-      setShowNoteInput(false);
-      setShowAutoRefreshInput(false);
-      setShowArchiveModal(false);
-      setShowInfoModal(false);
-      setShowDailyUrlsModal(false);
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (isRestrictedUrl(tab.url)) {
-        showError("Can't shorten this type of URL");
-        return;
-      }
-      
-      setIsShortening(true);
-      if (!tab.url) {
-        showError("No URL to shorten");
-        return;
-      }
-
-      // Use TinyURL API to shorten the URL
-      const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(tab.url)}`);
-      if (!response.ok) {
-        showError("Failed to shorten URL");
-        return;
-      }
-      
-      const shortUrl = await response.text();
-      
-      // Copy to clipboard
-      await navigator.clipboard.writeText(shortUrl);
-      
-      // Show copied notification
-      setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
-    } catch (error) {
-      showError("Failed to shorten URL");
-    } finally {
-      setIsShortening(false);
-    }
-  };
-
   const handleNoteToggle = () => {
     setShowPasswordInput(false);
     setShowAutoRefreshInput(false);
@@ -1201,38 +1157,6 @@ const App: React.FC = () => {
         </button>
 
         <button 
-          onClick={handleShortenUrl}
-          onMouseEnter={() => setActiveTooltip('shorten')}
-          onMouseLeave={() => setActiveTooltip(null)}
-          disabled={isShortening}
-          className={`p-2 hover:bg-gray-100 rounded-full transition-all duration-200 flex items-center justify-center relative ${
-            isShortening ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="18" 
-            height="18" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
-            className={isShortening ? 'animate-spin' : ''}
-          >
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-            <path d="M8 12h8"></path>
-          </svg>
-          {showCopied && (
-            <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded">
-              Copied!
-            </div>
-          )}
-        </button>
-
-        <button 
           onClick={handleNoteToggle}
           onMouseEnter={() => setActiveTooltip('note')}
           onMouseLeave={() => setActiveTooltip(null)}
@@ -1463,7 +1387,6 @@ const App: React.FC = () => {
            activeTooltip === 'screenshot' ? (isCapturing ? 'Capturing...' : 'Take Screenshot') :
            activeTooltip === 'lock' ? (isLocked ? 'Unlock Tab' : 'Lock Tab') :
            activeTooltip === 'pip' ? (isPiPActive ? 'Exit PiP' : 'Enter PiP') :
-           activeTooltip === 'shorten' ? (isShortening ? 'Shortening...' : 'Shorten URL') :
            activeTooltip === 'note' ? 'Quick Note' :
            activeTooltip === 'archive' ? 'Archive Tabs' :
            activeTooltip === 'dailyUrls' ? 'Daily URLs' :
@@ -1819,7 +1742,6 @@ const App: React.FC = () => {
           {activeTooltip === 'screenshot' && 'Take Screenshot'}
           {activeTooltip === 'lock' && (isLocked ? 'Unlock Tab' : 'Lock Tab')}
           {activeTooltip === 'pip' && (isPiPActive ? 'Exit PiP' : 'Enter PiP')}
-          {activeTooltip === 'shorten' && 'Shorten URL'}
           {activeTooltip === 'note' && 'Quick Note'}
           {activeTooltip === 'archive' && 'Archive Tabs'}
           {activeTooltip === 'dailyUrls' && 'Daily URLs'}
