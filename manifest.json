@@ -15,8 +15,7 @@
     "cookies",
     "storage",
     "tabCapture",
-    "scripting",
-    "clipboardWrite"
+    "scripting"
   ],
   "host_permissions": [],
   "action": {
